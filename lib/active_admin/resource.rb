@@ -6,6 +6,7 @@ require 'active_admin/resource/pagination'
 require 'active_admin/resource/routes'
 require 'active_admin/resource/naming'
 require 'active_admin/resource/scopes'
+require 'active_admin/resource/includes'
 require 'active_admin/resource/scope_to'
 require 'active_admin/resource/sidebars'
 require 'active_admin/resource/belongs_to'
@@ -77,6 +78,7 @@ module ActiveAdmin
     include PagePresenters
     include Pagination
     include Scopes
+    include Includes
     include ScopeTo
     include Sidebars
     include Routes
@@ -142,14 +144,20 @@ module ActiveAdmin
     end
 
     def find_resource(id)
-      resource = resource_class.public_send(method_for_find, id)
+      resource = resource_class.public_send *method_for_find(id)
       decorator_class ? decorator_class.new(resource) : resource
     end
 
     private
 
-    def method_for_find
-      resources_configuration[:self][:finder] || :"find_by_#{resource_class.primary_key}"
+    def method_for_find(id)
+      if finder = resources_configuration[:self][:finder]
+        [finder, id]
+      elsif Rails::VERSION::MAJOR >= 4
+        [:find_by, { resource_class.primary_key => id }]
+      else
+        [:"find_by_#{resource_class.primary_key}", id]
+      end
     end
 
     def default_csv_builder

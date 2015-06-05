@@ -13,7 +13,7 @@ describe "display_name" do
     end
   end
 
-  it "should memeoize the result for the class" do
+  it "should memoize the result for the class" do
     subject = Class.new.new
     expect(subject).to receive(:name).twice.and_return "My Name"
     expect(display_name subject).to eq "My Name"
@@ -31,10 +31,12 @@ describe "display_name" do
     expect(display_name subject).to eq 'foo@bar.baz'
   end
 
-  [nil, false].each do |type|
-    it "should return nil when the passed object is #{type.inspect}" do
-      expect(display_name type).to eq nil
-    end
+  it "should return `nil` when the passed object is `nil`" do
+    expect(display_name nil).to eq nil
+  end
+
+  it "should return 'false' when the passed objct is `false`" do
+    expect(display_name false).to eq "false"
   end
 
   it "should default to `to_s`" do

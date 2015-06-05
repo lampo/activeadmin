@@ -22,12 +22,17 @@ module ActiveAdmin
       config.scope(*args, &block)
     end
 
+    # Store relations that should be included
+    def includes(*args)
+      config.includes.push *args
+    end
+
     #
     # Rails 4 Strong Parameters Support
     #
     # Either
     #
-    #   permit_params :title, :author, :body
+    #   permit_params :title, :author, :body, tags: []
     #
     # Or
     #
@@ -40,12 +45,15 @@ module ActiveAdmin
     #     end
     #   end
     #
+    # Keys included in the `permitted_params` setting are automatically whitelisted.
+    #
     def permit_params(*args, &block)
       param_key = config.param_key.to_sym
 
       controller do
         define_method :permitted_params do
-          params.permit param_key => block ? instance_exec(&block) : args
+          params.permit *active_admin_namespace.permitted_params,
+            param_key => block ? instance_exec(&block) : args
         end
       end
     end
@@ -152,8 +160,14 @@ module ActiveAdmin
     delegate :before_destroy, :after_destroy, to: :controller
 
     # Standard rails filters
-    delegate :before_filter, :skip_before_filter, :after_filter, :skip_after_filter, :around_filter, :skip_filter,
-             to: :controller
+    delegate :before_filter,  :skip_before_filter, to: :controller
+    delegate :after_filter,   :skip_after_filter,  to: :controller
+    delegate :around_filter,  :skip_filter,        to: :controller
+    if Rails::VERSION::MAJOR == 4
+      delegate :before_action,  :skip_before_action, to: :controller
+      delegate :after_action,   :skip_after_action,  to: :controller
+      delegate :around_action,  :skip_action,        to: :controller
+    end
 
     # Specify which actions to create in the controller
     #

@@ -27,6 +27,7 @@ module ActiveAdmin
       def [](id)
         @children[normalize_id(id)]
       end
+
       def []=(id, child)
         @children[normalize_id(id)] = child
       end
@@ -92,7 +93,7 @@ module ActiveAdmin
       def normalize_id(id)
         case id
         when String, Symbol, ActiveModel::Name
-          id.to_s.downcase.gsub ' ', '_'
+          id.to_s.downcase.tr ' ', '_'
         when ActiveAdmin::Resource::Name
           id.param_key
         else

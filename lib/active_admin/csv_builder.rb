@@ -39,15 +39,24 @@ module ActiveAdmin
       @columns << Column.new(name, @resource, column_transitive_options.merge(options), block)
     end
 
-    def build(view_context, receiver)
+    def build(controller, receiver)
+      @collection = controller.send(:find_collection, except: :pagination)
       options = ActiveAdmin.application.csv_options.merge self.options
-      columns = exec_columns view_context
+      columns = exec_columns controller.view_context
 
-      receiver << CSV.generate_line(columns.map{ |c| encode c.name, options }, options)
+      if byte_order_mark = options.delete(:byte_order_mark)
+        receiver << byte_order_mark
+      end
 
-      view_context.send(:collection).find_each do |resource|
-        resource = view_context.send :apply_decorator, resource
-        receiver << CSV.generate_line(build_row(resource, columns, options), options)
+      if options.delete(:column_names) { true }
+        receiver << CSV.generate_line(columns.map{ |c| encode c.name, options }, options)
+      end
+
+      (1..paginated_collection.total_pages).each do |page_no|
+        paginated_collection(page_no).each do |resource|
+           resource = controller.send :apply_decorator, resource
+           receiver << CSV.generate_line(build_row(resource, columns, options), options)
+        end
       end
     end
 
@@ -66,7 +75,7 @@ module ActiveAdmin
 
     def encode(content, options)
       if options[:encoding]
-        content.to_s.encode! options[:encoding], options[:encoding_options]
+        content.to_s.encode options[:encoding], options[:encoding_options]
       else
         content
       end
@@ -104,6 +113,14 @@ module ActiveAdmin
 
     def column_transitive_options
       @column_transitive_options ||= @options.slice(*COLUMN_TRANSITIVE_OPTIONS)
+    end
+
+    def paginated_collection(page_no = 1)
+      @collection.public_send(Kaminari.config.page_method_name, page_no).per(batch_size)
+    end
+
+    def batch_size
+      1000
     end
   end
 end
