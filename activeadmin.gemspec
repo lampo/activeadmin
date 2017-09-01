@@ -13,7 +13,7 @@ Gem::Specification.new do |s|
   s.files         = `git ls-files -z`.split("\x0").reject do |f|
     f.match(%r{^(spec|features)/})
   end
-
+  
   s.test_files = `git ls-files -- {spec,features}/*`.split("\n")
 
   s.required_ruby_version = '>= 2.2'
