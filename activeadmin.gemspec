@@ -28,4 +28,6 @@ Gem::Specification.new do |s|
   s.add_dependency 'railties', '>= 5.0', '< 6.0'
   s.add_dependency 'ransack', '~> 2.1', '>= 2.1.1'
   s.add_dependency 'sass', '~> 3.4'
+  s.add_dependency 'sprockets', '>= 3.0', '< 4.1'
+  s.add_dependency 'sprockets-es6', '~> 0.9', '>= 0.9.2'
 end
