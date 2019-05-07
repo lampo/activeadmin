@@ -5,7 +5,7 @@ module ActiveAdmin
   class AccessDenied < StandardError
     attr_reader :user, :action, :subject
 
-    def initialize(user, action, subject)
+    def initialize(user, action, subject = nil)
       @user, @action, @subject = user, action, subject
 
       super()
@@ -22,7 +22,7 @@ module ActiveAdmin
   class ErrorLoading < Error
     # Locates the most recent file and line from the caught exception's backtrace.
     def find_cause(folder, backtrace)
-      backtrace.grep(/\/(#{folder}\/.*\.rb):(\d+)/){ [$1, $2] }.first
+      backtrace.grep(/\/(#{folder}\/.*\.rb):(\d+)/) { [$1, $2] }.first
     end
   end
 
@@ -33,7 +33,7 @@ module ActiveAdmin
       super "Your file, #{file} (line #{line}), caused a database error while Active Admin was loading. This " +
             "is most common when your database is missing or doesn't have the latest migrations applied. To " +
             "prevent this error, move the code to a place where it will only be run when a page is rendered. " +
-            "One solution can be, to wrap the query in a Proc." +
+            "One solution can be, to wrap the query in a Proc. " +
             "Original error message: #{exception.message}"
     end
 

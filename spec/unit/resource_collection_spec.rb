@@ -1,7 +1,7 @@
 require 'rails_helper'
 require 'active_admin/resource_collection'
 
-describe ActiveAdmin::ResourceCollection do
+RSpec.describe ActiveAdmin::ResourceCollection do
   let(:application) { ActiveAdmin::Application.new }
   let(:namespace)   { ActiveAdmin::Namespace.new application, :admin }
   let(:collection)  { ActiveAdmin::ResourceCollection.new }
@@ -22,7 +22,7 @@ describe ActiveAdmin::ResourceCollection do
 
   it "should be enumerable" do
     collection.add(resource)
-    collection.each{ |r| expect(r).to eq resource }
+    collection.each { |r| expect(r).to eq resource }
   end
 
   it "should return the available keys" do
@@ -171,5 +171,4 @@ describe ActiveAdmin::ResourceCollection do
   end
 
   skip "specs for subclasses of Page and Resource"
-
 end

@@ -1,7 +1,6 @@
 require 'rails_helper'
 
-describe ActiveAdmin::Filters::ResourceExtension do
-
+RSpec.describe ActiveAdmin::Filters::ResourceExtension do
   let(:resource) do
     namespace = ActiveAdmin::Namespace.new(ActiveAdmin::Application.new, :admin)
     namespace.register(Post)
@@ -13,7 +12,7 @@ describe ActiveAdmin::Filters::ResourceExtension do
 
   it "should return the defaults if no filters are set" do
     expect(resource.filters.keys).to match_array([
-      :author, :body, :category, :created_at, :custom_searcher, :position, :published_at, :starred, :taggings, :title, :updated_at
+      :author, :body, :category, :created_at, :custom_created_at_searcher, :custom_title_searcher, :custom_searcher_numeric, :position, :published_date, :starred, :taggings, :tags, :title, :updated_at, :foo_id
     ])
   end
 
@@ -30,6 +29,13 @@ describe ActiveAdmin::Filters::ResourceExtension do
   it "should not have defaults when the filters are disabled on the application" do
     resource.namespace.application.filters = false
     expect(resource.filters).to be_empty
+  end
+
+  it "should return the defaults without associations if default association filters are disabled on the namespace" do
+    resource.namespace.include_default_association_filters = false
+    expect(resource.filters.keys).to match_array([
+      :body, :created_at, :custom_created_at_searcher, :custom_title_searcher, :custom_searcher_numeric, :position, :published_date, :starred, :title, :updated_at, :foo_id
+    ])
   end
 
   describe "removing a filter" do
@@ -57,7 +63,7 @@ describe ActiveAdmin::Filters::ResourceExtension do
 
     it "should raise an exception when filters are disabled" do
       resource.filters = false
-      expect{ resource.remove_filter :author }.to raise_error ActiveAdmin::Filters::Disabled
+      expect { resource.remove_filter :author }.to raise_error ActiveAdmin::Filters::Disabled
     end
   end
 
@@ -82,14 +88,14 @@ describe ActiveAdmin::Filters::ResourceExtension do
 
     it "should work with specified options" do
       resource.add_filter :title, as: :string
-      expect(resource.filters).to eq title: {as: :string}
+      expect(resource.filters).to eq title: { as: :string }
     end
 
     it "should override an existing filter" do
       resource.add_filter :title, one: :two
       resource.add_filter :title, three: :four
 
-      expect(resource.filters).to eq title: {three: :four}
+      expect(resource.filters).to eq title: { three: :four }
     end
 
     it "should preserve default filters" do
@@ -97,13 +103,13 @@ describe ActiveAdmin::Filters::ResourceExtension do
       resource.add_filter :count, as: :string
 
       expect(resource.filters.keys).to match_array([
-        :author, :body, :category, :count, :created_at, :custom_searcher, :position, :published_at, :starred, :taggings, :title, :updated_at
+        :author, :body, :category, :count, :created_at, :custom_created_at_searcher, :custom_title_searcher, :custom_searcher_numeric, :position, :published_date, :starred, :taggings, :tags, :title, :updated_at, :foo_id
       ])
     end
 
     it "should raise an exception when filters are disabled" do
       resource.filters = false
-      expect{ resource.add_filter :title }.to raise_error ActiveAdmin::Filters::Disabled
+      expect { resource.add_filter :title }.to raise_error ActiveAdmin::Filters::Disabled
     end
   end
 
@@ -117,5 +123,4 @@ describe ActiveAdmin::Filters::ResourceExtension do
   it "should add a sidebar section for the filters" do
     expect(resource.sidebar_sections.first.name).to eq "filters"
   end
-
 end

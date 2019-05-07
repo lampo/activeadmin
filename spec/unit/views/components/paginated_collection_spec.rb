@@ -1,11 +1,9 @@
 require 'rails_helper'
 
-describe ActiveAdmin::Views::PaginatedCollection do
+RSpec.describe ActiveAdmin::Views::PaginatedCollection do
   describe "creating with the dsl" do
-
-    before :all do
-      load_defaults!
-      reload_routes!
+    around do |example|
+      with_resources_during(example) { ActiveAdmin.register Post }
     end
 
     let(:view) do
@@ -17,7 +15,7 @@ describe ActiveAdmin::Views::PaginatedCollection do
 
     # Helper to render paginated collections within an arbre context
     def paginated_collection(*args)
-      render_arbre_component({paginated_collection_args: args}, view) do
+      render_arbre_component({ paginated_collection_args: args }, view) do
         paginated_collection(*paginated_collection_args)
       end
     end
@@ -32,7 +30,7 @@ describe ActiveAdmin::Views::PaginatedCollection do
       allow(collection).to receive(:group_values) { [] }   unless collection.respond_to? :group_values
     end
 
-    let(:pagination){ paginated_collection collection }
+    let(:pagination) { paginated_collection collection }
 
     it "should set :collection as the passed in collection" do
       expect(pagination.find_by_class('pagination_information').first.content).to eq "Displaying <b>all 3</b> posts"
@@ -54,7 +52,7 @@ describe ActiveAdmin::Views::PaginatedCollection do
 
     context "when specifying :param_name option" do
       let(:collection) do
-        posts = 10.times.map{ Post.new }
+        posts = 10.times.map { Post.new }
         Kaminari.paginate_array(posts).page(1).per(5)
       end
 
@@ -67,7 +65,7 @@ describe ActiveAdmin::Views::PaginatedCollection do
 
     context "when specifying :params option" do
       let(:collection) do
-        posts = 10.times.map{ Post.new }
+        posts = 10.times.map { Post.new }
         Kaminari.paginate_array(posts).page(1).per(5)
       end
 
@@ -80,7 +78,7 @@ describe ActiveAdmin::Views::PaginatedCollection do
 
     context "when specifying download_links: false option" do
       let(:collection) do
-        posts = 10.times.map{ Post.new }
+        posts = 10.times.map { Post.new }
         Kaminari.paginate_array(posts).page(1).per(5)
       end
 
@@ -173,7 +171,7 @@ describe ActiveAdmin::Views::PaginatedCollection do
 
     context "when collection comes from find with GROUP BY" do
       let(:collection) do
-        %w{Foo Foo Bar}.each {|title| Post.create(title: title) }
+        %w{Foo Foo Bar}.each { |title| Post.create(title: title) }
         Post.select(:title).group(:title).page(1).per(5)
       end
 
@@ -184,12 +182,12 @@ describe ActiveAdmin::Views::PaginatedCollection do
 
     context "when collection with many pages comes from find with GROUP BY" do
       let(:collection) do
-        %w{Foo Foo Bar Baz}.each {|title| Post.create(title: title) }
+        %w{Foo Foo Bar Baz}.each { |title| Post.create(title: title) }
         Post.select(:title).group(:title).page(1).per(2)
       end
 
       it "should display proper message (including number and not hash)" do
-        expect(pagination.find_by_class('pagination_information').first.content.gsub('&nbsp;',' ')).
+        expect(pagination.find_by_class('pagination_information').first.content.gsub('&nbsp;', ' ')).
           to eq "Displaying posts <b>1 - 2</b> of <b>3</b> in total"
       end
     end
@@ -200,7 +198,7 @@ describe ActiveAdmin::Views::PaginatedCollection do
       end
 
       it "should show the proper item counts" do
-        expect(pagination.find_by_class('pagination_information').first.content.gsub('&nbsp;',' ')).
+        expect(pagination.find_by_class('pagination_information').first.content.gsub('&nbsp;', ' ')).
           to eq "Displaying posts <b>61 - 81</b> of <b>81</b> in total"
       end
     end
@@ -212,10 +210,9 @@ describe ActiveAdmin::Views::PaginatedCollection do
 
       describe "set to false" do
         it "should not show the total item counts" do
-          expect(collection).not_to receive(:num_pages)
           expect(collection).not_to receive(:total_pages)
           pagination = paginated_collection(collection, pagination_total: false)
-          info = pagination.find_by_class('pagination_information').first.content.gsub('&nbsp;',' ')
+          info = pagination.find_by_class('pagination_information').first.content.gsub('&nbsp;', ' ')
           expect(info).to eq "Displaying posts <b>1 - 30</b>"
         end
       end
@@ -224,7 +221,7 @@ describe ActiveAdmin::Views::PaginatedCollection do
         let(:pagination) { paginated_collection(collection, pagination_total: true) }
 
         it "should show the total item counts" do
-          info = pagination.find_by_class('pagination_information').first.content.gsub('&nbsp;',' ')
+          info = pagination.find_by_class('pagination_information').first.content.gsub('&nbsp;', ' ')
           expect(info).to eq "Displaying posts <b>1 - 30</b> of <b>256</b> in total"
         end
       end
@@ -244,7 +241,15 @@ describe ActiveAdmin::Views::PaginatedCollection do
         expect(pagination_html.content).to match(/Per page:/)
         expect(pagination_node).to have_css("select option", count: 3)
       end
-    end
 
+      context "with pagination_total: false" do
+        let(:pagination) { paginated_collection(collection, per_page: [1, 2, 3], pagination_total: false) }
+
+        it "should render per_page select tag" do
+          info = pagination.find_by_class('pagination_information').first.content.gsub('&nbsp;', ' ')
+          expect(info).to eq "Displaying posts <b>1 - 5</b>"
+        end
+      end
+    end
   end
 end

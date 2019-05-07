@@ -1,3 +1,7 @@
+---
+redirect_from: /docs/3-index-pages.html
+---
+
 # Customizing the Index Page
 
 Filtering and listing resources is one of the most important tasks for
@@ -77,7 +81,8 @@ end
 
 Out of the box, Active Admin supports the following filter types:
 
-* *:string* - A search field
+* *:string* -  A drop down for selecting "Contains", "Equals", "Starts with",
+  "Ends with" and an input for a value.
 * *:date_range* - A start and end date field with calendar inputs
 * *:numeric* - A drop down for selecting "Equal To", "Greater Than" or "Less
   Than" and an input for a value.
@@ -100,6 +105,24 @@ the collection as a proc to be called at render time.
 filter :author, as: :check_boxes, collection: proc { Author.all }
 ```
 
+To override options for string or numeric filter pass `filters` option.
+
+```ruby
+  filter :title, filters: [:starts_with, :ends_with]
+```
+
+Also, if you don't need the select with the options 'contains', 'equals',
+'starts_with' or 'ends_with' just add the option to the filter name with an
+underscore.
+
+For example:
+
+```ruby
+filter :name_equals
+# or
+filter :name_contains
+```
+
 You can change the filter label by passing a label option:
 
 ```ruby
@@ -108,9 +131,11 @@ filter :author, label: 'Something else'
 
 By default, Active Admin will try to use ActiveModel I18n to determine the label.
 
-You can also filter on more than one attribute of a model using the
-[Ransack search predicate syntax](https://github.com/activerecord-hackery/ransack/wiki/Basic-Searching). If using a custom search method, you will
-also need to specify the field type using `:as` and the label.
+You can also filter on more than one attribute of a model using the [Ransack
+search predicate
+syntax](https://github.com/activerecord-hackery/ransack/wiki/Basic-Searching).
+If using a custom search method, you will also need to specify the field type
+using `:as` and the label.
 
 ```ruby
 filter :first_name_or_last_name_cont, as: :string, label: "Name"
@@ -152,11 +177,18 @@ preserve_default_filters!
 filter :author
 ```
 
+Or you can also remove a filter and still preserve the default filters:
+
+```ruby
+preserve_default_filters!
+remove_filter :id
+```
+
 ## Index Scopes
 
 You can define custom scopes for your index page. This will add a tab bar above
-the index table to quickly filter your collection on pre-defined scopes. There are
-a number of ways to define your scopes:
+the index table to quickly filter your collection on pre-defined scopes. There
+are a number of ways to define your scopes:
 
 ```ruby
 scope :all, default: true
@@ -174,9 +206,29 @@ scope ->{ Date.today.strftime '%A' }, :published_today
 scope("Inactive") { |scope| scope.where(active: false) }
 
 # conditionally show a custom controller scope
-scope "Published", if: proc { current_admin_user.can? :manage, Posts } do |posts|
+scope "Published", if: -> { current_admin_user.can? :manage, Posts } do |posts|
   posts.published
 end
+```
+
+Scopes can be labelled with a translation, e.g.
+`activerecord.scopes.invoice.expired`.
+
+### Scopes groups
+
+You can assign group names to scopes to keep related scopes together and separate them from the rest.
+
+```ruby
+# a scope in the default group
+scope :all
+
+# two scopes used to filter by status
+scope :active, group: :status
+scope :inactive, group: :status
+
+# two scopes used to filter by date
+scope :today, group: :date
+scope :tomorrow, group: :date
 ```
 
 ## Index default sort order
@@ -207,11 +259,19 @@ ActiveAdmin.register Post do
 end
 ```
 
+Or allow users to choose themselves using dropdown with values
+
+```ruby
+ActiveAdmin.register Post do
+  config.per_page = [10, 50, 100]
+end
+```
+
 You can change it per request / action too:
 
 ```ruby
 controller do
-  before_filter :only => :index do
+  before_action only: :index do
     @per_page = 100
   end
 end
@@ -260,6 +320,9 @@ ActiveAdmin.setup do |config|
 end
 ```
 
-Note: you have to actually implement PDF rendering for your action, ActiveAdmin does not provide this feature. This setting just allows you to specify formats that you want to show up under the index collection.
+Note: you have to actually implement PDF rendering for your action, ActiveAdmin
+does not provide this feature. This setting just allows you to specify formats
+that you want to show up under the index collection.
 
-You'll need to use a PDF rendering library like PDFKit or WickedPDF to get the PDF generation you want.
+You'll need to use a PDF rendering library like PDFKit or WickedPDF to get the
+PDF generation you want.

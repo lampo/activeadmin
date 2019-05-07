@@ -4,8 +4,7 @@ require 'active_admin/menu_item'
 
 include ActiveAdmin
 
-describe ActiveAdmin::Menu do
-
+RSpec.describe ActiveAdmin::Menu do
   context "with no items" do
     it "should have an empty item collection" do
       menu = Menu.new
@@ -55,17 +54,6 @@ describe ActiveAdmin::Menu do
 
       expect(menu["Users"].url).to eq "/some/url"
       expect(menu["Users"]["Posts"]).to be_a ActiveAdmin::MenuItem
-    end
-  end
-
-  describe "sorting items" do
-    it "should sort children by the result of their label proc" do
-      menu = Menu.new
-      menu.add label: proc{ "G" }, id: "not related 1"
-      menu.add label: proc{ "B" }, id: "not related 2"
-      menu.add label: proc{ "A" }, id: "not related 3"
-
-      expect(menu.items.map(&:label)).to eq %w[A B G]
     end
   end
 end

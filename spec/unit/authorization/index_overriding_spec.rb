@@ -1,22 +1,22 @@
 require 'rails_helper'
 
-describe Admin::PostsController, 'Index overriding', type: :controller do
+RSpec.describe 'Index overriding', type: :controller do
   before do
-    controller.instance_eval do
+    load_resources { ActiveAdmin.register Post }
+    @controller = Admin::PostsController.new
+
+    @controller.instance_eval do
       def index
         super do
-          render text: 'Rendered from passed block' and return
+          render body: 'Rendered from passed block'
+          return
         end
       end
     end
-    load_defaults!
-    # HACK: the AA config is missing, so we throw it in here
-    controller.class.active_admin_config = ActiveAdmin.application.namespace(:admin).resources['Post'].controller.active_admin_config
   end
 
   it 'should call block passed to overridden index' do
     get :index
     expect(response.body).to eq 'Rendered from passed block'
   end
-
 end

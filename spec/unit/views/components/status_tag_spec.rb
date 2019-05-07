@@ -1,9 +1,7 @@
 require 'rails_helper'
 
-describe ActiveAdmin::Views::StatusTag do
-
+RSpec.describe ActiveAdmin::Views::StatusTag do
   describe "#status_tag" do
-
     # Helper method to build StatusTag objects in an Arbre context
     def status_tag(*args)
       render_arbre_component(status_tag_args: args) do
@@ -89,8 +87,22 @@ describe ActiveAdmin::Views::StatusTag do
       end
     end
 
-    context "when status is false" do
+    context "when status is 'false'" do
       subject { status_tag('false') }
+
+      describe '#class_list' do
+        subject { super().class_list }
+        it      { is_expected.to include('status_tag') }
+      end
+
+      describe '#content' do
+        subject { super().content }
+        it      { is_expected.to eq('No') }
+      end
+    end
+
+    context "when status is false" do
+      subject { status_tag(false) }
 
       describe '#class_list' do
         subject { super().class_list }
@@ -114,25 +126,6 @@ describe ActiveAdmin::Views::StatusTag do
       describe '#content' do
         subject { super().content }
         it      { is_expected.to eq('No') }
-      end
-    end
-
-    context "when status is 'Active' and type is :ok" do
-      subject { status_tag('Active', :ok) }
-
-      describe '#class_list' do
-        subject { super().class_list }
-        it      { is_expected.to include('status_tag') }
-      end
-
-      describe '#class_list' do
-        subject { super().class_list }
-        it      { is_expected.to include('active') }
-      end
-
-      describe '#class_list' do
-        subject { super().class_list }
-        it      { is_expected.to include('ok') }
       end
     end
 
@@ -179,8 +172,8 @@ describe ActiveAdmin::Views::StatusTag do
       end
     end
 
-    context "when status is 'So useless', type is :ok, class is 'woot awesome' and id is 'useless'" do
-      subject { status_tag('So useless', :ok, class: 'woot awesome', id: 'useless') }
+    context "when status is 'So useless', class is 'woot awesome' and id is 'useless'" do
+      subject { status_tag('So useless', class: 'woot awesome', id: 'useless') }
 
       describe '#content' do
         subject { super().content }
@@ -190,11 +183,6 @@ describe ActiveAdmin::Views::StatusTag do
       describe '#class_list' do
         subject { super().class_list }
         it      { is_expected.to include('status_tag') }
-      end
-
-      describe '#class_list' do
-        subject { super().class_list }
-        it      { is_expected.to include('ok') }
       end
 
       describe '#class_list' do

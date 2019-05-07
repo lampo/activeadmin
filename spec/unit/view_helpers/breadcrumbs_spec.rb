@@ -1,13 +1,12 @@
 require 'rails_helper'
 
-describe "Breadcrumbs" do
-
+RSpec.describe "Breadcrumbs" do
   include ActiveAdmin::ViewHelpers
+  include ActionView::Helpers::SanitizeHelper
 
   describe "generating a trail from paths" do
-
     def params; {}; end
-    def link_to(name, url); {name: name, path: url}; end
+    def link_to(name, url); { name: name, path: url }; end
 
     actions = ActiveAdmin::BaseController::ACTIVE_ADMIN_ACTIONS
 
@@ -129,11 +128,46 @@ describe "Breadcrumbs" do
       context "when User.find(4e24d6249ccf967313000000) does exist" do
         before do
           display_name = double(display_name: 'Hello :)')
-          allow(user_config).to receive(:find_resource).and_return(display_name) 
+          allow(user_config).to receive(:find_resource).and_return(display_name)
         end
         it "should have a link to /admin/users/4e24d6249ccf967313000000 using display name" do
           expect(trail[2][:name]).to eq "Hello :)"
           expect(trail[2][:path]).to eq "/admin/users/4e24d6249ccf967313000000"
+        end
+      end
+    end
+
+    context "when path '/admin/users/2b2f0fc2-9a0d-41b8-b39d-aa21963aaee4/posts'" do
+      let(:path) { "/admin/users/2b2f0fc2-9a0d-41b8-b39d-aa21963aaee4/posts" }
+
+      it "should have 3 items" do
+        expect(trail.size).to eq 3
+      end
+      it "should have a link to /admin" do
+        expect(trail[0][:name]).to eq "Admin"
+        expect(trail[0][:path]).to eq "/admin"
+      end
+      it "should have a link to /admin/users" do
+        expect(trail[1][:name]).to eq "Users"
+        expect(trail[1][:path]).to eq "/admin/users"
+      end
+
+      context "when User.find(2b2f0fc2-9a0d-41b8-b39d-aa21963aaee4) doesn't exist" do
+        before { allow(user_config).to receive(:find_resource) }
+        it "should have a link to /admin/users/2b2f0fc2-9a0d-41b8-b39d-aa21963aaee4" do
+          expect(trail[2][:name]).to eq "2b2f0fc2-9a0d-41b8-b39d-aa21963aaee4".titlecase
+          expect(trail[2][:path]).to eq "/admin/users/2b2f0fc2-9a0d-41b8-b39d-aa21963aaee4"
+        end
+      end
+
+      context "when User.find(2b2f0fc2-9a0d-41b8-b39d-aa21963aaee4) does exist" do
+        before do
+          display_name = double(display_name: 'Hello :)')
+          allow(user_config).to receive(:find_resource).and_return(display_name)
+        end
+        it "should have a link to /admin/users/2b2f0fc2-9a0d-41b8-b39d-aa21963aaee4 using display name" do
+          expect(trail[2][:name]).to eq "Hello :)"
+          expect(trail[2][:path]).to eq "/admin/users/2b2f0fc2-9a0d-41b8-b39d-aa21963aaee4"
         end
       end
     end
@@ -212,6 +246,5 @@ describe "Breadcrumbs" do
         expect(trail[2]).to eq "Hello World"
       end
     end
-
   end
 end

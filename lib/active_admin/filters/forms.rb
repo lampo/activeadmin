@@ -41,7 +41,6 @@ module ActiveAdmin
       end
     end
 
-
     # This module is included into the view
     module ViewHelper
 
@@ -49,8 +48,8 @@ module ActiveAdmin
       def active_admin_filters_form_for(search, filters, options = {})
         defaults = { builder: ActiveAdmin::Filters::FormBuilder,
                      url: collection_path,
-                     html: {class: 'filter_form'} }
-        required = { html: {method: :get},
+                     html: { class: 'filter_form' } }
+        required = { html: { method: :get },
                      as: :q }
         options  = defaults.deep_merge(options).deep_merge(required)
 
@@ -59,7 +58,10 @@ module ActiveAdmin
             next if opts.key?(:if)     && !call_method_or_proc_on(self, opts[:if])
             next if opts.key?(:unless) &&  call_method_or_proc_on(self, opts[:unless])
 
-            f.filter attribute, opts.except(:if, :unless)
+            filter_opts = opts.except(:if, :unless)
+            filter_opts[:input_html] = instance_exec(&filter_opts[:input_html]) if filter_opts[:input_html].is_a?(Proc)
+
+            f.filter attribute, filter_opts
           end
 
           buttons = content_tag :div, class: "buttons" do

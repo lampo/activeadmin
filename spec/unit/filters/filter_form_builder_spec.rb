@@ -1,23 +1,12 @@
 require 'rails_helper'
 
-class Post
-  ransacker :custom_searcher do
-    # nothing to see here
-  end
-end
-
-describe ActiveAdmin::Filters::ViewHelper do
-
+RSpec.describe ActiveAdmin::Filters::ViewHelper do
   # Setup an ActionView::Base object which can be used for
   # generating the form for.
   let(:helpers) do
-    view = action_view
+    view = mock_action_view
     def view.collection_path
       "/posts"
-    end
-
-    def view.protect_against_forgery?
-      false
     end
 
     def view.a_helper_method
@@ -28,19 +17,19 @@ describe ActiveAdmin::Filters::ViewHelper do
   end
 
   def render_filter(search, filters)
-    render_arbre_component({filter_args: [search, filters]}, helpers) do
+    render_arbre_component({ filter_args: [search, filters] }, helpers) do
       text_node active_admin_filters_form_for *assigns[:filter_args]
     end.to_s
   end
 
   def filter(name, options = {})
-    render_filter scope, name => options
+    Capybara.string(render_filter(scope, name => options))
   end
 
-  let(:scope) { Post.search }
+  let(:scope) { Post.ransack }
 
   describe "the form in general" do
-    let(:body) { Capybara.string(filter :title) }
+    let(:body) { filter :title }
 
     it "should generate a form which submits via get" do
       expect(body).to have_selector("form.filter_form[method=get]")
@@ -59,16 +48,24 @@ describe ActiveAdmin::Filters::ViewHelper do
     end
 
     describe "label as proc" do
-      let(:body) { Capybara.string(filter :title, label: proc { 'Title from proc' }) }
+      let(:body) { filter :title, label: proc { 'Title from proc' } }
 
       it "should render proper label" do
         expect(body).to have_selector("label", text: "Title from proc")
       end
     end
+
+    describe "input html as proc" do
+      let(:body) { filter :title, as: :select, input_html: proc { { 'data-ajax-url': '/' } } }
+
+      it "should render proper label" do
+        expect(body).to have_selector('select[data-ajax-url="/"]')
+      end
+    end
   end
 
   describe "string attribute" do
-    let(:body) { Capybara.string(filter :title) }
+    let(:body) { filter :title }
 
     it "should generate a select option for starts with" do
       expect(body).to have_selector("option[value=title_starts_with]", text: "Starts with")
@@ -91,21 +88,34 @@ describe ActiveAdmin::Filters::ViewHelper do
     end
 
     it "should translate the label for text field" do
-      with_translation activerecord: {attributes: {post: {title: 'Name'}}} do
+      with_translation activerecord: { attributes: { post: { title: 'Name' } } } do
         expect(body).to have_selector("label", text: "Name")
       end
     end
 
     it "should select the option which is currently being filtered" do
-      scope = Post.search title_starts_with: "foo"
+      scope = Post.ransack title_starts_with: "foo"
       body = Capybara.string(render_filter scope, title: {})
       expect(body).to have_selector("option[value=title_starts_with][selected=selected]", text: "Starts with")
+    end
+
+    context "with filters options" do
+      let(:body) { filter :title, filters: [:contains, :starts_with] }
+
+      it "should generate provided options for filter select" do
+        expect(body).to have_selector("option[value=title_contains]", text: "Contains")
+        expect(body).to have_selector("option[value=title_starts_with]", text: "Starts with")
+      end
+
+      it "should not generate a select option for ends with" do
+        expect(body).not_to have_selector("option[value=title_ends_with]")
+      end
     end
 
     context "with predicate" do
       %w[eq equals cont contains start starts_with end ends_with].each do |predicate|
         describe "'#{predicate}'" do
-          let(:body) { Capybara.string(filter :"title_#{predicate}") }
+          let(:body) { filter :"title_#{predicate}" }
 
           it "shouldn't include a select field" do
             expect(body).not_to have_selector("select")
@@ -120,7 +130,7 @@ describe ActiveAdmin::Filters::ViewHelper do
   end
 
   describe "text attribute" do
-    let(:body) { Capybara.string(filter :body) }
+    let(:body) { filter :body }
 
     it "should generate a search field for a text attribute" do
       expect(body).to have_selector("input[name='q[body_contains]']")
@@ -143,8 +153,8 @@ describe ActiveAdmin::Filters::ViewHelper do
 
       it "should remove original ordering to prevent PostgreSQL error" do
         expect(scope.object.klass).to receive(:reorder).with('title asc') {
-          m = double uniq: double(pluck: ['A Title'])
-          expect(m.uniq).to receive(:pluck).with :title
+          m = double distinct: double(pluck: ['A Title'])
+          expect(m.distinct).to receive(:pluck).with :title
           m
         }
         body
@@ -152,45 +162,68 @@ describe ActiveAdmin::Filters::ViewHelper do
     end
   end
 
-  describe "datetime attribute" do
-    let(:body) { Capybara.string(filter :created_at) }
+  describe "date attribute" do
+    let(:body) { filter :published_date }
 
     it "should generate a date greater than" do
-      expect(body).to have_selector("input.datepicker[name='q[created_at_gteq]']")
-    end
-    it "should generate a seperator" do
-      expect(body).to have_selector("span.seperator")
+      expect(body).to have_selector("input.datepicker[name='q[published_date_gteq]']")
     end
     it "should generate a date less than" do
-      expect(body).to have_selector("input.datepicker[name='q[created_at_lteq]']")
+      expect(body).to have_selector("input.datepicker[name='q[published_date_lteq]']")
+    end
+  end
+
+  describe "datetime attribute" do
+    let(:body) { filter :created_at }
+
+    it "should generate a date greater than" do
+      expect(body).to have_selector("input.datepicker[name='q[created_at_gteq_datetime]']")
+    end
+    it "should generate a date less than" do
+      expect(body).to have_selector("input.datepicker[name='q[created_at_lteq_datetime]']")
     end
   end
 
   describe "integer attribute" do
-    let(:body) { Capybara.string(filter :id) }
+    context "without options" do
+      let(:body) { filter :id }
 
-    it "should generate a select option for equal to" do
-      expect(body).to have_selector("option[value=id_equals]", text: "Equals")
+      it "should generate a select option for equal to" do
+        expect(body).to have_selector("option[value=id_equals]", text: "Equals")
+      end
+      it "should generate a select option for greater than" do
+        expect(body).to have_selector("option[value=id_greater_than]", text: "Greater than")
+      end
+      it "should generate a select option for less than" do
+        expect(body).to have_selector("option[value=id_less_than]", text: "Less than")
+      end
+      it "should generate a text field for input" do
+        expect(body).to have_selector("input[name='q[id_equals]']")
+      end
+      it "should select the option which is currently being filtered" do
+        scope = Post.ransack id_greater_than: 1
+        body = Capybara.string(render_filter scope, id: {})
+        expect(body).to have_selector("option[value=id_greater_than][selected=selected]", text: "Greater than")
+      end
     end
-    it "should generate a select option for greater than" do
-      expect(body).to have_selector("option", text: "Greater than")
-    end
-    it "should generate a select option for less than" do
-      expect(body).to have_selector("option", text: "Less than")
-    end
-    it "should generate a text field for input" do
-      expect(body).to have_selector("input[name='q[id_equals]']")
-    end
-    it "should select the option which is currently being filtered" do
-      scope = Post.search id_greater_than: 1
-      body = Capybara.string(render_filter scope, id: {})
-      expect(body).to have_selector("option[value=id_greater_than][selected=selected]", text: "Greater than")
+
+    context "with filters options" do
+      let(:body) { filter :id, filters: [:equals, :greater_than] }
+
+      it "should generate provided options for filter select" do
+        expect(body).to have_selector("option[value=id_equals]", text: "Equals")
+        expect(body).to have_selector("option[value=id_greater_than]", text: "Greater than")
+      end
+
+      it "should not generate a select option for less than" do
+        expect(body).not_to have_selector("option[value=id_less_than]")
+      end
     end
   end
 
   describe "boolean attribute" do
     context "boolean datatypes" do
-      let(:body) { Capybara.string(filter :starred) }
+      let(:body) { filter :starred }
 
       it "should generate a select" do
         expect(body).to have_selector("select[name='q[starred_eq]']")
@@ -204,14 +237,14 @@ describe ActiveAdmin::Filters::ViewHelper do
       end
 
       it "should translate the label for boolean field" do
-        with_translation activerecord: {attributes: {post: {starred: 'Faved'}}} do
+        with_translation activerecord: { attributes: { post: { starred: 'Faved' } } } do
           expect(body).to have_selector("label", text: "Faved")
         end
       end
     end
 
     context "non-boolean data types" do
-      let(:body) { Capybara.string(filter :title_present, as: :boolean) }
+      let(:body) { filter :title_present, as: :boolean }
 
       it "should generate a select" do
         expect(body).to have_selector("select[name='q[title_present]']")
@@ -233,7 +266,7 @@ describe ActiveAdmin::Filters::ViewHelper do
     end
 
     context "when given as the _id attribute name" do
-      let(:body) { Capybara.string(filter :author_id) }
+      let(:body) { filter :author_id }
 
       it "should generate a numeric filter" do
         expect(body).to have_selector("label", text: "Author") # really this should be Author ID :/)
@@ -243,7 +276,7 @@ describe ActiveAdmin::Filters::ViewHelper do
     end
 
     context "when given as the name of the relationship" do
-      let(:body) { Capybara.string(filter :author) }
+      let(:body) { filter :author }
 
       it "should generate a select" do
         expect(body).to have_selector("select[name='q[author_id_eq]']")
@@ -258,7 +291,7 @@ describe ActiveAdmin::Filters::ViewHelper do
 
       context "with a proc" do
         let :body do
-          Capybara.string(filter :title, as: :select, collection: proc{ ['Title One', 'Title Two'] })
+          filter :title, as: :select, collection: proc { ['Title One', 'Title Two'] }
         end
 
         it "should use call the proc as the collection" do
@@ -267,14 +300,36 @@ describe ActiveAdmin::Filters::ViewHelper do
         end
 
         it "should render the collection in the context of the view" do
-          body = Capybara.string(filter(:title, as: :select, collection: proc{[a_helper_method]}))
+          body = filter :title, as: :select, collection: proc { [a_helper_method] }
           expect(body).to have_selector("option", text: "A Helper Method")
         end
       end
     end
 
+    context "when given the name of relationship with a primary key other than id" do
+      let(:resource_klass) {
+        Class.new(Post) do
+          belongs_to :kategory, class_name: "Category", primary_key: :name, foreign_key: :title
+
+          def self.name
+            "SuperPost"
+          end
+        end
+      }
+
+      let(:scope) do
+        resource_klass.ransack
+      end
+
+      let(:body) { filter :kategory }
+
+      it "should use the association primary key" do
+        expect(body).to have_selector("select[name='q[kategory_name_eq]']")
+      end
+    end
+
     context "as check boxes" do
-      let(:body) { Capybara.string(filter :author, as: :check_boxes) }
+      let(:body) { filter :author, as: :check_boxes }
 
       it "should create a check box for each related object" do
         expect(body).to have_selector("input[type=checkbox][name='q[author_id_in][]'][value='#{@jane.id}']")
@@ -283,7 +338,7 @@ describe ActiveAdmin::Filters::ViewHelper do
     end
 
     context "when polymorphic relationship" do
-      let(:scope) { ActiveAdmin::Comment.search }
+      let(:scope) { ActiveAdmin::Comment.ransack }
       it "should raise an error if a collection isn't provided" do
         expect { filter :resource }.to raise_error \
           Formtastic::PolymorphicInputWithoutCollectionError
@@ -291,8 +346,8 @@ describe ActiveAdmin::Filters::ViewHelper do
     end
 
     context "when using a custom foreign key" do
-      let(:scope) { Post.search }
-      let(:body)  { Capybara.string(filter :category) }
+      let(:scope) { Post.ransack }
+      let(:body)  { filter :category }
       it "should ignore that foreign key and let Ransack handle it" do
         expect(Post.reflect_on_association(:category).foreign_key).to eq :custom_category_id
         expect(body).to have_selector("select[name='q[category_id_eq]']")
@@ -308,7 +363,7 @@ describe ActiveAdmin::Filters::ViewHelper do
     # Setup an ActionView::Base object which can be used for
     # generating the form for.
     let(:helpers) do
-      view = action_view
+      view = mock_action_view
       def view.collection_path
         "/categories"
       end
@@ -323,13 +378,13 @@ describe ActiveAdmin::Filters::ViewHelper do
 
       view
     end
-    let(:scope) { Category.search }
+    let(:scope) { Category.ransack }
 
     let!(:john) { User.create first_name: "John", last_name: "Doe", username: "john_doe" }
     let!(:jane) { User.create first_name: "Jane", last_name: "Doe", username: "jane_doe" }
 
     context "when given as the name of the relationship" do
-      let(:body) { Capybara.string(filter :authors) }
+      let(:body) { filter :authors }
 
       it "should generate a select" do
         expect(body).to have_selector("select[name='q[posts_author_id_eq]']")
@@ -346,7 +401,7 @@ describe ActiveAdmin::Filters::ViewHelper do
     end
 
     context "as check boxes" do
-      let(:body) { Capybara.string(filter :authors, as: :check_boxes) }
+      let(:body) { filter :authors, as: :check_boxes }
 
       it "should create a check box for each related object" do
         expect(body).to have_selector("input[name='q[posts_author_id_in][]'][type=checkbox][value='#{john.id}']")
@@ -362,22 +417,22 @@ describe ActiveAdmin::Filters::ViewHelper do
       if_false = verb == :if ? :to_not  : :to
       context "with #{verb.inspect} proc" do
         it "#{should} be displayed if true" do
-          body = Capybara.string(filter :body, verb => proc{ true })
-          expect(body).send if_true,  have_selector("input[name='q[body_contains]']")
+          body = filter :body, verb => proc { true }
+          expect(body).send if_true, have_selector("input[name='q[body_contains]']")
         end
         it "#{should} be displayed if false" do
-          body = Capybara.string(filter :body, verb => proc{ false })
+          body = filter :body, verb => proc { false }
           expect(body).send if_false, have_selector("input[name='q[body_contains]']")
         end
         it "should still be hidden on the second render" do
-          filters = {body: { verb => proc{ verb == :unless }}}
+          filters = { body: { verb => proc { verb == :unless } } }
           2.times do
-            body = Capybara.string(render_filter scope, filters)
+            body = filter scope, filters
             expect(body).not_to have_selector("input[name='q[body_contains]']")
           end
         end
         it "should successfully keep rendering other filters after one is hidden" do
-          filters = {body: { verb => proc{ verb == :unless }}, author: {}}
+          filters = { body: { verb => proc { verb == :unless } }, author: {} }
           body    = Capybara.string(render_filter scope, filters)
           expect(body).not_to have_selector("input[name='q[body_contains]']")
           expect(body).to     have_selector("select[name='q[author_id_eq]']")
@@ -387,47 +442,75 @@ describe ActiveAdmin::Filters::ViewHelper do
   end
 
   describe "custom search methods" do
+    it "should use the default type of the ransacker" do
+      body = filter :custom_searcher_numeric
+      expect(body).to have_selector("option[value=custom_searcher_numeric_equals]")
+      expect(body).to have_selector("option[value=custom_searcher_numeric_greater_than]")
+      expect(body).to have_selector("option[value=custom_searcher_numeric_less_than]")
+    end
 
     it "should work as select" do
-      body = Capybara.string(filter :custom_searcher, as: :select, collection: ['foo'])
-      expect(body).to have_selector("select[name='q[custom_searcher]']")
+      body = filter :custom_title_searcher, as: :select, collection: ['foo']
+      expect(body).to have_selector("select[name='q[custom_title_searcher_eq]']")
     end
 
     it "should work as string" do
-      body = Capybara.string(filter :custom_searcher, as: :string)
-      expect(body).to have_selector("input[name='q[custom_searcher]']")
+      body = filter :custom_title_searcher, as: :string
+      expect(body).to have_selector("option[value=custom_title_searcher_contains]")
+      expect(body).to have_selector("option[value=custom_title_searcher_starts_with]")
+    end
+
+    describe "custom date range search" do
+      let(:gteq) { "2010-10-01" }
+      let(:lteq) { "2010-10-02" }
+      let(:scope) { Post.ransack custom_created_at_searcher_gteq_datetime: gteq, custom_created_at_searcher_lteq_datetime: lteq }
+      let(:body) { filter :custom_created_at_searcher, as: :date_range }
+
+      it "should work as date_range" do
+        expect(body).to have_selector("input[name='q[custom_created_at_searcher_gteq_datetime]'][value='2010-10-01']")
+        expect(body).to have_selector("input[name='q[custom_created_at_searcher_lteq_datetime]'][value='2010-10-02']")
+      end
+
+      context "filter value can't be casted to date" do
+        let(:gteq) { "Ooops" }
+        let(:lteq) { "Ooops" }
+
+        it "should work display empty filter values" do
+          expect(body).to have_selector("input[name='q[custom_created_at_searcher_gteq_datetime]'][value='']")
+          expect(body).to have_selector("input[name='q[custom_created_at_searcher_lteq_datetime]'][value='']")
+        end
+      end
     end
   end
 
   describe "does not support some filter inputs" do
     it "should fallback to use formtastic inputs" do
-      body = Capybara.string(filter :custom_searcher, as: :text)
-      expect(body).to have_selector("textarea[name='q[custom_searcher]']")
+      body = filter :custom_title_searcher, as: :text
+      expect(body).to have_selector("textarea[name='q[custom_title_searcher]']")
     end
   end
 
   describe "blank option" do
     context "for a select filter" do
       it "should be there by default" do
-        body = Capybara.string(filter(:author))
+        body = filter :author
         expect(body).to have_selector("option", text: "Any")
       end
       it "should be able to be disabled" do
-        body = Capybara.string(filter(:author, include_blank: false))
+        body = filter :author, include_blank: false
         expect(body).to_not have_selector("option", text: "Any")
       end
     end
 
     context "for a multi-select filter" do
       it "should not be there by default" do
-        body = Capybara.string(filter(:author, multiple: true))
+        body = filter :author, multiple: true
         expect(body).to_not have_selector("option", text: "Any")
       end
       it "should be able to be enabled" do
-        body = Capybara.string(filter(:author, multiple: true, include_blank: true))
+        body = filter :author, multiple: true, include_blank: true
         expect(body).to have_selector("option", text: "Any")
       end
     end
   end
-
 end

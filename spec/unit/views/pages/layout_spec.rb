@@ -1,8 +1,7 @@
 require 'rails_helper'
 
-describe ActiveAdmin::Views::Pages::Layout do
-
-  let(:assigns){ {} }
+RSpec.describe ActiveAdmin::Views::Pages::Layout do
+  let(:assigns) { {} }
   let(:helpers) do
     helpers = mock_action_view
 
@@ -13,7 +12,7 @@ describe ActiveAdmin::Views::Pages::Layout do
       current_active_admin_user:  nil,
       current_active_admin_user?: false,
       current_menu:               double('Menu', items: []),
-      params:                     {controller: 'UsersController', action: 'edit'},
+      params:                     { controller: 'UsersController', action: 'edit' },
       env:                        {}
     }.each do |method, returns|
       allow(helpers).to receive(method).and_return returns
@@ -22,8 +21,8 @@ describe ActiveAdmin::Views::Pages::Layout do
     helpers
   end
 
-  let(:active_admin_namespace){ ActiveAdmin::Namespace.new(ActiveAdmin::Application.new, :myspace) }
-  let(:active_admin_application){ ActiveAdmin.application }
+  let(:active_admin_namespace) { ActiveAdmin::Namespace.new(ActiveAdmin::Application.new, :myspace) }
+  let(:active_admin_application) { ActiveAdmin.application }
   let(:view_factory) { ActiveAdmin::ViewFactory.new }
 
   let(:layout) do
@@ -44,8 +43,11 @@ describe ActiveAdmin::Views::Pages::Layout do
     expect(layout.title).to eq "Edit"
   end
 
-  describe "the body" do
+  it "should have lang attribute on the html element" do
+    expect(layout.attributes[:lang]).to eq :en
+  end
 
+  describe "the body" do
     it "should have class 'active_admin'" do
       expect(layout.build.class_list).to include 'active_admin'
     end
@@ -53,7 +55,5 @@ describe ActiveAdmin::Views::Pages::Layout do
     it "should have namespace class" do
       expect(layout.build.class_list).to include "#{active_admin_namespace.name}_namespace"
     end
-
   end
-
 end

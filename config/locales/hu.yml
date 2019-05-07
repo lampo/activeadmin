@@ -31,6 +31,10 @@ hu:
         ends_with: "végződik"
         greater_than: "Nagyobb, mint"
         less_than: "Kisebb, mint"
+        gteq_datetime: "Nagyobb vagy egyenlő, mint"
+        lteq_datetime: "Kisebb vagy egyenlő, mint"
+        from: "-tól"
+        to: "-ig"
     status_tag:
       "yes": "Igen"
       "no": "Nem"
@@ -62,14 +66,12 @@ hu:
         one: "1 %{model} sikeresen törölve"
         other: "%{count} %{plural_model} sikeresen törölve"
       selection_toggle_explanation: "(Kijelölés megfordítása)"
-      link: "Létrehozás"
       action_label: "%{title} kiválasztva"
       labels:
         destroy: "Törlés"
     comments:
       body: "Törzs"
       author: "Szerző"
-      title: "Hozzászólás"
       add: "Új hozzászólás"
       resource: "Erőforrás"
       no_comments_yet: "Nincsenek hozzászólások."
@@ -83,7 +85,7 @@ hu:
         submit: "Belépés"
       reset_password:
         title: "Elfelejtette a jelszavát?"
-        submit: "Visszaállítása a jelszót"
+        submit: "Jelszó visszaállítása"
       change_password:
         title: "A jelszó módosítása"
         submit: "Jelszó módosítása"

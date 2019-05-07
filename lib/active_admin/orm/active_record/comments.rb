@@ -5,8 +5,9 @@ require 'active_admin/orm/active_record/comments/resource_helper'
 
 # Add the comments configuration
 ActiveAdmin::Application.inheritable_setting :comments,                   true
-ActiveAdmin::Application.inheritable_setting :show_comments_in_menu,      true
 ActiveAdmin::Application.inheritable_setting :comments_registration_name, 'Comment'
+ActiveAdmin::Application.inheritable_setting :comments_order,             "created_at ASC"
+ActiveAdmin::Application.inheritable_setting :comments_menu,              {}
 
 # Insert helper modules
 ActiveAdmin::Namespace.send :include, ActiveAdmin::Comments::NamespaceHelper
@@ -16,13 +17,24 @@ ActiveAdmin.application.view_factory.show_page.send :include, ActiveAdmin::Comme
 # Load the model as soon as it's referenced. By that point, Rails & Kaminari will be ready
 ActiveAdmin.autoload :Comment, 'active_admin/orm/active_record/comments/comment'
 
+# Hint i18n-tasks about model and attribute translations used by default install
+# i18n-tasks-use t('activerecord.models.comment')
+# i18n-tasks-use t('activerecord.models.active_admin/comment')
+# i18n-tasks-use t('activerecord.attributes.active_admin/comment.author_type')
+# i18n-tasks-use t('activerecord.attributes.active_admin/comment.body')
+# i18n-tasks-use t('activerecord.attributes.active_admin/comment.created_at')
+# i18n-tasks-use t('activerecord.attributes.active_admin/comment.namespace')
+# i18n-tasks-use t('activerecord.attributes.active_admin/comment.resource_type')
+# i18n-tasks-use t('activerecord.attributes.active_admin/comment.updated_at')
+# i18n-tasks-use t('active_admin.scopes.all')
+
 # Walk through all the loaded namespaces after they're loaded
 ActiveAdmin.after_load do |app|
   app.namespaces.each do |namespace|
     namespace.register ActiveAdmin::Comment, as: namespace.comments_registration_name do
-      actions :index, :show, :create
+      actions :index, :show, :create, :destroy
 
-      menu false unless namespace.comments && namespace.show_comments_in_menu
+      menu namespace.comments ? namespace.comments_menu : false
 
       config.comments      = false # Don't allow comments on comments
       config.batch_actions = false # The default destroy batch action isn't showing up anyway...
@@ -45,28 +57,35 @@ ActiveAdmin.after_load do |app|
       controller do
         # Prevent N+1 queries
         def scoped_collection
-          super.includes *( # rails/rails#14734
-            ActiveAdmin::Dependency.rails?('>= 4.1.0', '<= 4.1.1') ?
-              [:author] : [:author, :resource]
-          )
+          super.includes(:author, :resource)
         end
 
         # Redirect to the resource show page after comment creation
         def create
           create! do |success, failure|
-            success.html{ redirect_to :back }
+            success.html do
+              redirect_back fallback_location: active_admin_root
+            end
             failure.html do
               flash[:error] = I18n.t 'active_admin.comments.errors.empty_text'
-              redirect_to :back
+              redirect_back fallback_location: active_admin_root
+            end
+          end
+
+          def destroy
+            destroy! do |success, failure|
+              success.html do
+                redirect_back fallback_location: active_admin_root
+              end
+              failure.html do
+                redirect_back fallback_location: active_admin_root
+              end
             end
           end
         end
       end
 
-      # Set up permitted params in case the app is using Strong Parameters
-      unless Rails::VERSION::MAJOR == 3 && !defined? StrongParameters
-        permit_params :body, :namespace, :resource_id, :resource_type
-      end
+      permit_params :body, :namespace, :resource_id, :resource_type
 
       index do
         column I18n.t('active_admin.comments.resource_type'), :resource_type
@@ -74,6 +93,7 @@ ActiveAdmin.after_load do |app|
         column I18n.t('active_admin.comments.resource'),      :resource
         column I18n.t('active_admin.comments.author'),        :author
         column I18n.t('active_admin.comments.body'),          :body
+        column I18n.t('active_admin.comments.created_at'),    :created_at
         actions
       end
     end

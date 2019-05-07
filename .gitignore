@@ -1,49 +1,12 @@
-## Mac
-.DS_Store
-
-## Windows
-.Thumbs.db
-
-## TextMate
-*.tm_project
-*.tmproj
-tmtags
-
-## Emacs
-*~
-\#*
-.\#*
-
-## Vim
-*.swp
-# IDEA / RUBYMINE
-.idea
-
-## RVM
-.rvmrc
-.ruby-version
-.ruby-gemset
-
-## Project (general)
-tags
+tmp
 coverage
-rdoc
-doc
 .yardoc
+.ruby-version
 pkg
-
-## Project (specific)
-bin/
 .bundle
-spec/rails
-*.sqlite3-journal
-Gemfile.lock
-Gemfile-*.lock
-capybara*
-viewcumber
-test-rails*
+.test-rails-apps
 public
-.rspec
+.rspec_failures
 .rails-version
 .rbenv-version
-.localeapp/*
+node_modules

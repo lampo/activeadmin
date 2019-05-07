@@ -25,16 +25,38 @@ module ActiveAdmin
   # resource will be accessible from "/posts" and the controller will be PostsController.
   #
   class Namespace
+    class << self
+      def setting(name, default)
+        Deprecation.warn "This method does not do anything and will be removed."
+      end
+    end
+
     RegisterEvent = 'active_admin.namespace.register'.freeze
 
-    attr_reader :application, :resources, :name, :menus
+    attr_reader :application, :resources, :menus
 
     def initialize(application, name)
       @application = application
-      @name = name.to_s.underscore.to_sym
+      @name = name.to_s.underscore
       @resources = ResourceCollection.new
       register_module unless root?
       build_menu_collection
+    end
+
+    def name
+      @name.to_sym
+    end
+
+    def settings
+      @settings ||= SettingsNode.build(application.namespace_settings)
+    end
+
+    def respond_to_missing?(method, include_private = false)
+      settings.respond_to?(method) || super
+    end
+
+    def method_missing(method, *args)
+      settings.respond_to?(method) ? settings.send(method, *args) : super
     end
 
     # Register a resource into this namespace. The preffered method to access this is to
@@ -45,11 +67,11 @@ module ActiveAdmin
 
       # Register the resource
       register_resource_controller(config)
-      parse_registration_block(config, resource_class, &block) if block_given?
+      parse_registration_block(config, &block) if block_given?
       reset_menu!
 
       # Dispatch a registration event
-      ActiveAdmin::Event.dispatch ActiveAdmin::Resource::RegisterEvent, config
+      ActiveSupport::Notifications.publish ActiveAdmin::Resource::RegisterEvent, config
 
       # Return the config
       config
@@ -78,8 +100,11 @@ module ActiveAdmin
     #   Namespace.new(:root).module_name # => nil
     #
     def module_name
-      return nil if root?
-      @module_name ||= name.to_s.camelize
+      root? ? nil : @name.camelize
+    end
+
+    def route_prefix
+      root? ? nil : @name
     end
 
     # Unload all the registered resources for this namespace
@@ -91,12 +116,6 @@ module ActiveAdmin
     # Returns the first registered ActiveAdmin::Resource instance for a given class
     def resource_for(klass)
       resources[klass]
-    end
-
-    # Override from ActiveAdmin::Settings to inherit default attributes
-    # from the application
-    def read_default_setting(name)
-      application.public_send name
     end
 
     def fetch_menu(name)
@@ -131,8 +150,8 @@ module ActiveAdmin
       if logout_link_path
         html_options = html_options.reverse_merge(method: logout_link_method || :get)
         menu.add id: 'logout', priority: priority, html_options: html_options,
-          label: ->{ I18n.t 'active_admin.logout' },
-          url:   ->{ render_or_call_method_or_proc_on self, active_admin_namespace.logout_link_path },
+          label: -> { I18n.t 'active_admin.logout' },
+          url:   -> { render_or_call_method_or_proc_on self, active_admin_namespace.logout_link_path },
           if:    :current_active_admin_user?
       end
     end
@@ -194,7 +213,7 @@ module ActiveAdmin
       resources.each do |resource|
         parent = (module_name || 'Object').constantize
         name   = resource.controller_name.split('::').last
-        parent.send(:remove_const, name) if parent.const_defined? name
+        parent.send(:remove_const, name) if parent.const_defined?(name, false)
 
         # Remove circular references
         resource.controller.active_admin_config = nil
@@ -212,14 +231,14 @@ module ActiveAdmin
       end
     end
 
-    # TODO replace `eval` with `Class.new`
+    # TODO: replace `eval` with `Class.new`
     def register_resource_controller(config)
       eval "class ::#{config.controller_name} < ActiveAdmin::ResourceController; end"
       config.controller.active_admin_config = config
     end
 
-    def parse_registration_block(config, resource_class, &block)
-      config.dsl = ResourceDSL.new(config, resource_class)
+    def parse_registration_block(config, &block)
+      config.dsl = ResourceDSL.new(config)
       config.dsl.run_registration_block(&block)
     end
 

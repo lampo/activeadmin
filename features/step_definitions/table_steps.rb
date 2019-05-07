@@ -1,5 +1,6 @@
 Then /^I should see (\d+) ([\w]*) in the table$/ do |count, resource_type|
-  expect(all("table.index_table tr > td:first").count).to eq count.to_i
+  expect(page).to \
+    have_css("table.index_table tr > td:first-child", count: count.to_i)
 end
 
 # TODO: simplify this, if possible?
@@ -34,32 +35,16 @@ class HtmlTableToTextHelper
   def input_to_string(input)
     case input.attribute("type").value
     when "checkbox"
-      if input.attribute("disabled")
-        "_"
-      else
-        if input.attribute("checked")
-          "[X]"
-        else
-          "[ ]"
-        end
-      end
-    when "text"
-      if input.attribute("value").present?
-        "[#{input.attribute("value")}]"
-      else
-        "[ ]"
-      end
-    when "submit"
-      input.attribute("value")
+      "[ ]"
     else
+      # :nocov:
       raise "I don't know what to do with #{input}"
+      # :nocov:
     end
   end
 end
 
 module TableMatchHelper
-
-
   # @param table [Array[Array]]
   # @param expected_table [Array[Array[String]]]
   # The expected_table values are String. They are converted to
@@ -78,12 +63,14 @@ module TableMatchHelper
         begin
           assert_cells_match(cell, expected_cell)
         rescue
+          # :nocov:
           puts "Cell at line #{row_index} and column #{column_index}: #{cell.inspect} does not match #{expected_cell.inspect}"
           puts "Expecting:"
           table.each { |row| puts row.inspect }
           puts "to match:"
           expected_table.each { |row| puts row.inspect }
           raise $!
+          # :nocov:
         end
       end
     end
@@ -96,11 +83,9 @@ module TableMatchHelper
       expect((cell || "").strip).to eq expected_cell
     end
   end
-
-end # module TableMatchHelper
+end
 
 World(TableMatchHelper)
-
 
 # Usage:
 #

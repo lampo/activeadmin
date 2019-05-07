@@ -1,14 +1,9 @@
-# -*- coding: UTF-8 -*-
-
 require 'rails_helper'
 
 module ActiveAdmin
-  describe Resource, "Naming" do
-
-    before { load_defaults! }
-
-    let(:application){ ActiveAdmin::Application.new }
-    let(:namespace){ Namespace.new(application, :admin) }
+  RSpec.describe Resource, "Naming" do
+    let(:application) { ActiveAdmin::Application.new }
+    let(:namespace) { Namespace.new(application, :admin) }
 
     def config(options = {})
       @config ||= Resource.new(namespace, Category, options)
@@ -100,7 +95,6 @@ module ActiveAdmin
             end
           end
         end
-
       end
     end
 
@@ -110,7 +104,7 @@ module ActiveAdmin
 
       [:==, :===, :eql?].each do |method|
         it "are equivalent when compared with #{method}" do
-          expect(resource_name.public_send(method, duplicate_resource_name)).to be_truthy
+          expect(resource_name.public_send(method, duplicate_resource_name)).to eq true
         end
       end
 

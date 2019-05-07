@@ -1,3 +1,6 @@
+---
+redirect_from: /docs/7-sidebars.html
+---
 # Sidebar Sections
 
 Sidebars allow you to put whatever content you want on the side the page.
@@ -65,7 +68,8 @@ By default sidebars are positioned in the same order as they defined, but it's a
 possible to specify their position manually:
 
 ```ruby
-sidebar :help, priority: 0 # will push Help section to the top (above default Filters section)
+# will push Help section to the top (above default Filters section)
+sidebar :help, priority: 0
 ```
 
 Default sidebar priority is `10`.

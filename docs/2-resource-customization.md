@@ -1,3 +1,7 @@
+---
+redirect_from: /docs/2-resource-customization.html
+---
+
 # Working with Resources
 
 Every Active Admin resource corresponds to a Rails model. So before creating a
@@ -6,7 +10,7 @@ resource you must first create a Rails model for it.
 ## Create a Resource
 
 The basic command for creating a resource is `rails g active_admin:resource Post`.
-The generator will produce an empty `app/admin/post.rb` file like so:
+The generator will produce an empty `app/admin/posts.rb` file like so:
 
 ```ruby
 ActiveAdmin.register Post do
@@ -16,9 +20,6 @@ end
 
 ## Setting up Strong Parameters
 
-Rails 4 replaces `attr_accessible` with [Strong Parameters](https://github.com/rails/strong_parameters),
-which moves attribute whitelisting from the model to the controller.
-
 Use the `permit_params` method to define which attributes may be changed:
 
 ```ruby
@@ -27,12 +28,14 @@ ActiveAdmin.register Post do
 end
 ```
 
-Any form field that sends multiple values (such as a HABTM association, or an array attribute)
-needs to pass an empty array to `permit_params`:
+Any form field that sends multiple values (such as a HABTM association, or an
+array attribute) needs to pass an empty array to `permit_params`:
+
+If your HABTM is `roles`, you should permit `role_ids: []`
 
 ```ruby
 ActiveAdmin.register Post do
-  permit_params :title, :content, :publisher_id, roles: []
+  permit_params :title, :content, :publisher_id, role_ids: []
 end
 ```
 
@@ -63,7 +66,17 @@ ActiveAdmin.register Post do
 end
 ```
 
-The `permit_params` call creates a method called `permitted_params`. You should use this method when overriding `create` or `update` actions:
+If your resource is nested, declare `permit_params` after `belongs_to`:
+
+```ruby
+ActiveAdmin.register Post do
+  belongs_to :user
+  permit_params :title, :content, :publisher_id
+end
+```
+
+The `permit_params` call creates a method called `permitted_params`. You should
+use this method when overriding `create` or `update` actions:
 
 ```ruby
 ActiveAdmin.register Post do
@@ -91,6 +104,26 @@ ActiveAdmin.register Post do
   actions :all, except: [:update, :destroy]
 end
 ```
+
+## Renaming Action Items
+
+You can use translations to override labels and page titles for actions such as
+new, edit, and destroy by providing a resource specific translation.  For
+example, to change 'New Offer' to 'Make an Offer' add the following in
+config/locales/[en].yml:
+
+```yaml
+en:
+  active_admin:
+    resources:
+      offer: # Registered resource
+        new_model: 'Make an Offer' # new action item
+        edit_model: 'Change Offer' # edit action item
+        delete_model: 'Cancel Offer' # delete action item
+```
+
+See the [default en.yml](/config/locales/en.yml) locale file for
+existing translations and examples.
 
 ## Rename the Resource
 
@@ -170,6 +203,7 @@ end
 ### Conditionally Showing / Hiding Menu Items
 
 Menu items can be shown or hidden at runtime using the `:if` option.
+
 ```ruby
 ActiveAdmin.register Post do
   menu if: proc{ current_user.can_edit_posts? }
@@ -244,9 +278,15 @@ config.namespace :admin do |admin|
     menu.add label: "The Application", url: "/", priority: 0
 
     menu.add label: "Sites" do |sites|
-      sites.add label: "Google",   url: "http://google.com", html_options: { target: :blank }
-      sites.add label: "Facebook", url: "http://facebook.com"
-      sites.add label: "Github",   url: "http://github.com"
+      sites.add label: "Google",
+                url: "http://google.com",
+                html_options: { target: :blank }
+
+      sites.add label: "Facebook",
+                url: "http://facebook.com"
+
+      sites.add label: "Github",
+                url: "http://github.com"
     end
   end
 end
@@ -285,7 +325,8 @@ end
 
 ## Eager loading
 
-A common way to increase page performance is to elimate N+1 queries by eager loading associations:
+A common way to increase page performance is to eliminate N+1 queries by eager
+loading associations:
 
 ```ruby
 ActiveAdmin.register Post do
@@ -295,7 +336,13 @@ end
 
 ## Customizing resource retrieval
 
-If you need to customize the collection properties, you can overwrite the `scoped_collection` method.
+Our controllers are built on [Inherited
+Resources](https://github.com/activeadmin/inherited_resources), so you can use
+[all of its
+features](https://github.com/activeadmin/inherited_resources#overwriting-defaults).
+
+If you need to customize the collection properties, you can overwrite the
+`scoped_collection` method.
 
 ```ruby
 ActiveAdmin.register Post do
@@ -307,8 +354,23 @@ ActiveAdmin.register Post do
 end
 ```
 
-If you need to completely replace the record retrieving code (e.g., you have a custom
-`to_param` implementation in your models), override the `resource` method on the controller:
+If you need to completely replace the record retrieving code (e.g., you have a
+custom `to_param` implementation in your models), override the `resource` method
+on the controller:
+
+```ruby
+ActiveAdmin.register Post do
+  controller do
+    def find_resource
+      scoped_collection.where(id: params[:id]).first!
+    end
+  end
+end
+```
+
+Note that if you use an authorization library like CanCan, you should be careful
+to not write code like this, otherwise **your authorization rules won't be
+applied**:
 
 ```ruby
 ActiveAdmin.register Post do
@@ -319,9 +381,6 @@ ActiveAdmin.register Post do
   end
 end
 ```
-
-Our controllers are built on [Inherited Resources](https://github.com/josevalim/inherited_resources),
-so you can use [all of its features](https://github.com/josevalim/inherited_resources#overwriting-defaults).
 
 ## Belongs To
 
@@ -336,7 +395,7 @@ ActiveAdmin.register Ticket do
 end
 ```
 
-Projects will be available as usual and tickets will be availble by visiting
+Projects will be available as usual and tickets will be available by visiting
 `/admin/projects/1/tickets` assuming that a Project with the id of 1 exists.
 Active Admin does not add "Tickets" to the global navigation because the routes
 can only be generated when there is a project id.
@@ -349,8 +408,8 @@ ActiveAdmin.register Project do
 
   sidebar "Project Details", only: [:show, :edit] do
     ul do
-      li link_to "Tickets",    admin_project_tickets_path(project)
-      li link_to "Milestones", admin_project_milestones_path(project)
+      li link_to "Tickets",    admin_project_tickets_path(resource)
+      li link_to "Milestones", admin_project_milestones_path(resource)
     end
   end
 end
@@ -367,7 +426,7 @@ end
 In some cases (like Projects), there are many sub resources and you would
 actually like the global navigation to switch when the user navigates "into" a
 project. To accomplish this, Active Admin stores the `belongs_to` resources in a
-seperate menu which you can use if you so wish. To use:
+separate menu which you can use if you so wish. To use:
 
 ```ruby
 ActiveAdmin.register Ticket do

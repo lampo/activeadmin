@@ -1,19 +1,15 @@
 require 'rails_helper'
 
 module ActiveAdmin
-  describe Resource, "Scopes" do
-
-    before { load_defaults! }
-
-    let(:application){ ActiveAdmin::Application.new }
-    let(:namespace){ Namespace.new(application, :admin) }
+  RSpec.describe Resource, "Scopes" do
+    let(:application) { ActiveAdmin::Application.new }
+    let(:namespace) { Namespace.new(application, :admin) }
 
     def config(options = {})
       @config ||= Resource.new(namespace, Category, options)
     end
 
     describe "adding a scope" do
-
       it "should add a scope" do
         config.scope :published
         expect(config.scopes.first).to be_a(ActiveAdmin::Scope)
@@ -40,11 +36,10 @@ module ActiveAdmin
 
       it "should update a scope with the same id" do
         config.scope :published
-        expect(config.scopes.first.scope_block).to be_nil
-        config.scope(:published){  }
-        expect(config.scopes.first.scope_block).to_not be_nil
+        expect(config.scopes.first.scope_block).to eq nil
+        config.scope(:published) {}
+        expect(config.scopes.first.scope_block).to_not eq nil
       end
-
     end
   end
 end

@@ -1,7 +1,7 @@
 module ActiveAdmin
   module Dependency
     module Requirements
-      DEVISE = '~> 3.2'
+      DEVISE = '>= 4.0', '< 5'
     end
 
     # Provides a clean interface to check for gem dependencies at runtime.
@@ -21,11 +21,11 @@ module ActiveAdmin
     # ActiveAdmin::Dependency.draper? '~> 1.2.0'
     # => true
     #
-    # ActiveAdmin::Dependency.rails? '>= 4.1.0', '<= 4.1.1'
+    # ActiveAdmin::Dependency.rails? '>= 4.2.7', '<= 5.0.2'
     # => true
     #
-    # ActiveAdmin::Dependency.rails! '2'
-    # -> ActiveAdmin::DependencyError: You provided rails 3.2.18 but we need: 2.
+    # ActiveAdmin::Dependency.rails! '5'
+    # -> ActiveAdmin::DependencyError: You provided rails 4.2.7 but we need: 5.
     #
     # ActiveAdmin::Dependency.devise!
     # -> ActiveAdmin::DependencyError: To use devise you need to specify it in your Gemfile.
@@ -33,12 +33,12 @@ module ActiveAdmin
     #
     # All but the pessimistic operator (~>) can also be run using Ruby's comparison syntax.
     #
-    # ActiveAdmin::Dependency.rails >= '3.2.18'
+    # ActiveAdmin::Dependency.rails >= '4.2.7'
     # => true
     #
     # Which is especially useful if you're looking up a gem with dashes in the name.
     #
-    # ActiveAdmin::Dependency['jquery-ui-rails'] < 5
+    # ActiveAdmin::Dependency['jquery-rails'] < 5
     # => false
     #
     def self.method_missing(name, *args)
@@ -53,6 +53,14 @@ module ActiveAdmin
 
     def self.[](name)
       Matcher.new name.to_s
+    end
+
+    def self.rails_version
+      rails.spec.version
+    end
+
+    def self.supports_zeitwerk?
+      rails >= "6.0.0.beta3" && RUBY_ENGINE != "jruby"
     end
 
     class Matcher
@@ -91,5 +99,6 @@ module ActiveAdmin
         "<ActiveAdmin::Dependency::Matcher for #{info}>"
       end
     end
+
   end
 end

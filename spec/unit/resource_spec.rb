@@ -1,14 +1,16 @@
 require 'rails_helper'
-require File.expand_path('config_shared_examples', File.dirname(__FILE__))
+require File.expand_path('config_shared_examples', __dir__)
 
 module ActiveAdmin
-  describe Resource do
-
+  RSpec.describe Resource do
     it_should_behave_like "ActiveAdmin::Resource"
-    before { load_defaults! }
 
-    let(:application){ ActiveAdmin::Application.new }
-    let(:namespace){ Namespace.new(application, :admin) }
+    around do |example|
+      with_resources_during(example) { namespace.register Category }
+    end
+
+    let(:application) { ActiveAdmin::Application.new }
+    let(:namespace) { Namespace.new(application, :admin) }
 
     def config(options = {})
       @config ||= Resource.new(namespace, Category, options)
@@ -35,9 +37,13 @@ module ActiveAdmin
 
     describe '#decorator_class' do
       it 'returns nil by default' do
-        expect(config.decorator_class).to be_nil
+        expect(config.decorator_class).to eq nil
       end
       context 'when a decorator is defined' do
+        around do |example|
+          with_resources_during(example) { resource }
+        end
+
         let(:resource) { namespace.register(Post) { decorate_with PostDecorator } }
         specify '#decorator_class_name should return PostDecorator' do
           expect(resource.decorator_class_name).to eq '::PostDecorator'
@@ -49,13 +55,12 @@ module ActiveAdmin
       end
     end
 
-
     describe "controller name" do
       it "should return a namespaced controller name" do
         expect(config.controller_name).to eq "Admin::CategoriesController"
       end
       context "when non namespaced controller" do
-        let(:namespace){ ActiveAdmin::Namespace.new(application, :root) }
+        let(:namespace) { ActiveAdmin::Namespace.new(application, :root) }
         it "should return a non namespaced controller name" do
           expect(config.controller_name).to eq "CategoriesController"
         end
@@ -63,34 +68,35 @@ module ActiveAdmin
     end
 
     describe "#include_in_menu?" do
-      let(:namespace){ ActiveAdmin::Namespace.new(application, :admin) }
-      subject{ resource }
+      subject { resource }
+
+      around do |example|
+        with_resources_during(example) { resource }
+      end
 
       context "when regular resource" do
-        let(:resource){ namespace.register(Post) }
+        let(:resource) { namespace.register(Post) }
         it { is_expected.to be_include_in_menu }
       end
 
       context "when menu set to false" do
-        let(:resource){ namespace.register(Post){ menu false } }
+        let(:resource) { namespace.register(Post) { menu false } }
         it { is_expected.not_to be_include_in_menu }
       end
     end
 
     describe "#belongs_to" do
-
       it "should build a belongs to configuration" do
-        expect(config.belongs_to_config).to be_nil
+        expect(config.belongs_to_config).to eq nil
         config.belongs_to :posts
-        expect(config.belongs_to_config).to_not be_nil
+        expect(config.belongs_to_config).to_not eq nil
       end
 
-      it "should set the target menu to the belongs to target" do
+      it "should not set the target menu to the belongs to target" do
         expect(config.navigation_menu_name).to eq ActiveAdmin::DEFAULT_MENU
         config.belongs_to :posts
-        expect(config.navigation_menu_name).to eq :posts
+        expect(config.navigation_menu_name).to eq ActiveAdmin::DEFAULT_MENU
       end
-
     end
 
     describe "scoping" do
@@ -146,8 +152,9 @@ module ActiveAdmin
       end
     end
 
-
     describe "sort order" do
+      class MockResource
+      end
 
       context "when resource class responds to primary_key" do
         it "should sort by primary key desc by default" do
@@ -168,15 +175,22 @@ module ActiveAdmin
         config.sort_order = "task_id_desc"
         expect(config.sort_order).to eq "task_id_desc"
       end
-
     end
 
     describe "adding a scope" do
-
       it "should add a scope" do
         config.scope :published
         expect(config.scopes.first).to be_a(ActiveAdmin::Scope)
         expect(config.scopes.first.name).to eq "Published"
+        expect(config.scopes.first.show_count).to eq true
+      end
+
+      context 'when show_count disabled' do
+        it "should add a scope show_count = false" do
+          namespace.scopes_show_count = false
+          config.scope :published
+          expect(config.scopes.first.show_count).to eq false
+        end
       end
 
       it "should retrive a scope by its id" do
@@ -185,17 +199,16 @@ module ActiveAdmin
       end
 
       it "should retrieve the default scope by proc" do
-        config.scope :published, default: proc{ true }
+        config.scope :published, default: proc { true }
         config.scope :all
         expect(config.default_scope.name).to eq "Published"
       end
-
     end
 
     describe "#csv_builder" do
       context "when no csv builder set" do
         it "should return a default column builder with id and content columns" do
-          expect(config.csv_builder.exec_columns.size).to eq Category.content_columns.size + 1
+          expect(config.csv_builder.exec_columns.size).to eq @config.content_columns.size + 1
         end
       end
 
@@ -218,53 +231,56 @@ module ActiveAdmin
       context "when breadcrumb is set" do
         context "when set to true" do
           before { config.breadcrumb = true }
-          it { is_expected.to be_truthy }
+          it { is_expected.to eq true }
         end
 
         context "when set to false" do
           before { config.breadcrumb = false }
-          it { is_expected.to be_falsey }
+          it { is_expected.to eq false }
         end
       end
     end
 
     describe '#find_resource' do
-      let(:resource) { namespace.register(Post) }
       let(:post) { double }
-      before do
-        if Rails::VERSION::MAJOR >= 4
-          allow(Post).to receive(:find_by).with("id" => "12345") { post }
-        else
-          allow(Post).to receive(:find_by_id).with("12345") { post }
-        end
+
+      around do |example|
+        with_resources_during(example) { resource }
       end
 
-      it 'can find the resource' do
-        expect(resource.find_resource('12345')).to eq post
+      context 'without a decorator' do
+        let(:resource) { namespace.register(Post) }
+
+        it 'can find the resource' do
+          allow(Post).to receive(:find_by).with("id" => "12345") { post }
+          expect(resource.find_resource('12345')).to eq post
+        end
       end
 
       context 'with a decorator' do
         let(:resource) { namespace.register(Post) { decorate_with PostDecorator } }
+
         it 'decorates the resource' do
+          allow(Post).to receive(:find_by).with("id" => "12345") { post }
           expect(resource.find_resource('12345')).to eq PostDecorator.new(post)
+        end
+
+        it 'does not decorate a not found resource' do
+          allow(Post).to receive(:find_by).with("id" => "54321") { nil }
+          expect(resource.find_resource('54321')).to equal nil
         end
       end
 
       context 'when using a nonstandard primary key' do
-        let(:different_post) { double }
+        let(:resource) { namespace.register(Post) }
+
         before do
           allow(Post).to receive(:primary_key).and_return 'something_else'
-          if Rails::VERSION::MAJOR >= 4
-            allow(Post).to receive(:find_by).
-              with("something_else" => "55555") { different_post }
-          else
-            allow(Post).to receive(:find_by_something_else).
-              with("55555") { different_post }
-          end
+          allow(Post).to receive(:find_by).with("something_else" => "55555") { post }
         end
 
         it 'can find the post by the custom primary key' do
-          expect(resource.find_resource('55555')).to eq different_post
+          expect(resource.find_resource('55555')).to eq post
         end
       end
 
@@ -275,6 +291,10 @@ module ActiveAdmin
               defaults finder: :find_by_title!
             end
           end
+        end
+
+        after do
+          Admin.send(:remove_const, :"PostsController")
         end
 
         it 'can find the post by controller finder' do
@@ -293,34 +313,20 @@ module ActiveAdmin
           end
         end.new
       }
-      let(:resource) { ActiveAdmin::ResourceDSL.new(double, double) }
+      let(:resource) { ActiveAdmin::ResourceDSL.new(double) }
 
       before do
         expect(resource).to receive(:controller).and_return(controller)
       end
 
-      context "filters" do
+      context "actions" do
         [
-          :before_filter, :skip_before_filter,
-          :after_filter, :skip_after_filter,
-          :around_filter, :skip_filter
-        ].each do |filter|
-          it "delegates #{filter}" do
-            expect(resource.send(filter)).to eq "called #{filter}"
-          end
-        end
-      end
-
-      if Rails::VERSION::MAJOR == 4
-        context "actions" do
-          [
-            :before_action, :skip_before_action,
-            :after_action, :skip_after_action,
-            :around_action, :skip_action
-          ].each do |action|
-            it "delegates #{action}" do
-              expect(resource.send(action)).to eq "called #{action}"
-            end
+          :before_action, :skip_before_action,
+          :after_action, :skip_after_action,
+          :around_action, :skip_action
+        ].each do |method|
+          it "delegates #{method}" do
+            expect(resource.send(method)).to eq "called #{method}"
           end
         end
       end

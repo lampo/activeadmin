@@ -1,12 +1,8 @@
 require 'rails_helper'
 
-describe ActiveAdmin::ResourceController::Decorators do
+RSpec.describe ActiveAdmin::ResourceController::Decorators do
   let(:controller_class) do
     Class.new do
-      def self.name
-        "Test Controller using Decorators"
-      end
-
       include ActiveAdmin::ResourceController::Decorators
 
       public :apply_decorator, :apply_collection_decorator
@@ -28,6 +24,17 @@ describe ActiveAdmin::ResourceController::Decorators do
     context 'with a decorator configured' do
       let(:decorator_class) { PostDecorator }
       it { is_expected.to be_kind_of(PostDecorator) }
+
+      context 'with form' do
+        let(:action) { 'update' }
+
+        it "does not decorate when :decorate is set to false" do
+          form = double
+          allow(form).to receive(:options).and_return(decorate: false)
+          allow(active_admin_config).to receive(:get_page_presenter).and_return(form)
+          is_expected.not_to be_kind_of(PostDecorator)
+        end
+      end
     end
 
     context 'with no decorator configured' do
@@ -55,7 +62,6 @@ describe ActiveAdmin::ResourceController::Decorators do
         it 'has a good description for the generated class' do
           expect(applied.class.name).to eq "Draper::CollectionDecorator of PostDecorator + ActiveAdmin"
         end
-
       end
     end
   end
@@ -78,6 +84,5 @@ describe ActiveAdmin::ResourceController::Decorators do
       let(:decorate_form) { true }
       it { is_expected.to be_kind_of(PostDecorator) }
     end
-
   end
 end

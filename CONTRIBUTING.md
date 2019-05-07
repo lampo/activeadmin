@@ -3,20 +3,17 @@
 First off, thank you for considering contributing to Active Admin. It's people
 like you that make Active Admin such a great tool.
 
-### 1. Where do I go from here?
+### Where do I go from here?
 
 If you've noticed a bug or have a question that doesn't belong on the
-[mailing list](http://groups.google.com/group/activeadmin) or
-[Stack Overflow](http://stackoverflow.com/questions/tagged/activeadmin),
-[search the issue tracker](https://github.com/activeadmin/activeadmin/issues?q=something)
-to see if someone else in the community has already created a ticket.
-If not, go ahead and [make one](https://github.com/activeadmin/activeadmin/issues/new)!
+[mailing list][] or [Stack Overflow][], [search the issue tracker][] to see if
+someone else in the community has already created a ticket. If not, go ahead and
+[make one][new issue]!
 
-### 2. Fork & create a branch
+### Fork & create a branch
 
-If this is something you think you can fix, then
-[fork Active Admin](https://help.github.com/articles/fork-a-repo)
-and create a branch with a descriptive name.
+If this is something you think you can fix, then [fork Active Admin][] and
+create a branch with a descriptive name.
 
 A good branch name would be (where issue #325 is the ticket you're working on):
 
@@ -24,9 +21,15 @@ A good branch name would be (where issue #325 is the ticket you're working on):
 git checkout -b 325-add-japanese-translations
 ```
 
-### 3. Get the test suite running
+### Get the test suite running
 
-Install the development dependencies:
+Make sure you're using a recent ruby and have the `bundler` gem installed, at
+least version `1.14.3`.
+
+You'll also need chrome and [chromedriver] installed in order to run cucumber
+scenarios.
+
+Now install the development dependencies:
 
 ```sh
 bundle install
@@ -35,23 +38,52 @@ bundle install
 Now you should be able to run the entire suite using:
 
 ```sh
-rake test
+bin/rake
 ```
 
-Which will generate a rails application in `spec/rails` to run the tests against.
+The test run will generate a sample Rails application in `tmp/rails` to run the
+tests against.
 
-If your tests are passing locally but they're failing on Travis, reset your test environment:
+If your tests are passing locally but they're failing on CircleCI, it's probably
+because of some breaking change or problem with the latest version of some
+dependency. You should be able to reproduce the issue locally by:
+
+* Removing the `Gemfile.lock` file.
+* Running `bundle install`.
+* Re-running the tests again like you did previously.
+
+This is not your fault though, so if this happens feel free to investigate, but
+also feel free to ping maintainers about the issue you just found.
+
+If you want to test against a Rails version different from the latest, make sure
+you use the correct Gemfile, for example:
 
 ```sh
-rm -rf spec/rails && bundle update
+export BUNDLE_GEMFILE=gemfiles/rails_51.gemfile
 ```
 
-### 4. Implement your fix or feature
+### Did you find a bug?
+
+* **Ensure the bug was not already reported** by [searching all issues][].
+
+* If you're unable to find an open issue addressing the problem,
+  [open a new one][new issue]. Be sure to include a **title and clear
+  description**, as much relevant information as possible, and a **code sample**
+  or an **executable test case** demonstrating the expected behavior that is not
+  occurring.
+
+* If possible, use the relevant bug report templates to create the issue.
+  Simply copy the content of the appropriate template into a .rb file, make the
+  necessary changes to demonstrate the issue, and **paste the content into the
+  issue description**:
+  * [**ActiveAdmin** master issues][master template]
+
+### 5. Implement your fix or feature
 
 At this point, you're ready to make your changes! Feel free to ask for help;
 everyone is a beginner at first :smile_cat:
 
-### 5. View your changes in a Rails application
+### 6. View your changes in a Rails application
 
 Active Admin is meant to be used by humans, not cucumbers. So make sure to take
 a look at your changes in a browser.
@@ -59,54 +91,40 @@ a look at your changes in a browser.
 To boot up a test Rails app:
 
 ```sh
-script/local server
+bin/rake local server
 ```
 
-This will automatically create a Rails app if none already exists, and store it in the
-`.test-rails-apps` folder. The currently active app is symlinked to `test-rails-app`.
+This will automatically create a Rails app if none already exists, and store it
+in the `.test-rails-apps` folder.
 
-If you have any Bundler issues, call the `use_rails` script then prepend
-the version of rails you would like to use in an environment variable:
+You should now be able to open <http://localhost:3000/admin> in your browser.
+You can log in using:
+
+*User*: admin@example.com
+*Password*: password
+
+If you need to perform any other commands on the test application, just pass
+them to the `local` rake task. For example, to boot the rails console:
 
 ```sh
-script/use_rails 4.0.0
-RAILS=4.0.0 script/local server
+bin/rake local console
 ```
 
-You should now be able to open <http://localhost:3000/admin> in your browser. You can log in using:
-
-	User: admin@example.com
-	Password: password
-
-If you need to perform any other commands on the test application, use the
-`local` script. For example:
-
-To boot the rails console:
+Or to migrate the database, if you create a new migration or just play around
+with the db:
 
 ```sh
-script/local console
+bin/rake local db:migrate
 ```
 
-Or to migrate the database:
+### Get the style right
 
-```sh
-script/local rake db:migrate
-```
+Your patch should follow the same conventions & pass the same code quality
+checks as the rest of the project. `bin/rake lint` will give you feedback in
+this regard. You can check & fix style issues by running each linter
+individually. Run `bin/rake -T lint` to see the available linters.
 
-### 6. Run tests against major supported rails versions
-
-Once you've implemented your code, got the tests passing, previewed it in a
-browser, you're ready to test it against multiple versions of Rails.
-
-```sh
-rake test:major_supported_rails
-```
-
-This runs our test suite against a couple of major versions of Rails.
-Travis does essentially the same thing when you open a Pull Request.
-We care about quality, so your PR won't be merged until all tests pass.
-
-### 7. Make a Pull Request
+### Make a Pull Request
 
 At this point, you should switch back to your master branch and make sure it's
 up to date with Active Admin's master branch:
@@ -125,20 +143,75 @@ git rebase master
 git push --set-upstream origin 325-add-japanese-translations
 ```
 
-Finally, go to GitHub and [make a Pull Request](https://help.github.com/articles/creating-a-pull-request) :D
+Finally, go to GitHub and [make a Pull Request][] :D
 
-### 8. Keeping your Pull Request updated
+CircleCI will run our test suite against all supported Rails versions. We care
+about quality, so your PR won't be merged until all tests pass. It's unlikely,
+but it's possible that your changes pass tests in one Rails version but fail in
+another. In that case, you'll have to setup your development environment (as
+explained in step 3) to use the problematic Rails version, and investigate
+what's going on!
+
+### Keeping your Pull Request updated
 
 If a maintainer asks you to "rebase" your PR, they're saying that a lot of code
 has changed, and that you need to update your branch so it's easier to merge.
 
-To learn more about rebasing in Git, there are a lot of
-[good](http://git-scm.com/book/en/Git-Branching-Rebasing)
-[resources](https://help.github.com/articles/interactive-rebase),
-but here's the suggested workflow:
+To learn more about rebasing in Git, there are a lot of [good][git rebasing]
+[resources][interactive rebase] but here's the suggested workflow:
 
 ```sh
 git checkout 325-add-japanese-translations
 git pull --rebase upstream master
-git push -f 325-add-japanese-translations
+git push --force-with-lease 325-add-japanese-translations
 ```
+
+### Merging a PR (maintainers only)
+
+A PR can only be merged into master by a maintainer if:
+
+* It is passing CI.
+* It has been approved by at least two maintainers. If it was a maintainer who
+  opened the PR, only one extra approval is needed.
+* It has no requested changes.
+* It is up to date with current master.
+
+Any maintainer is allowed to merge a PR if all of these conditions are
+met.
+
+### Shipping a release (maintainers only)
+
+Maintainers need to do the following to push out a release:
+
+* Make sure all pull requests are in and that changelog is current
+* Update `version.rb` file and changelog with new version number
+* If it's not a patch level release, create a stable branch for that release,
+  otherwise switch to the stable branch corresponding to the patch release you
+  want to ship:
+
+  ```sh
+  git checkout master
+  git fetch activeadmin
+  git rebase activeadmin/master
+  # If the release is 2.1.x then this should be: 2-1-stable
+  git checkout -b N-N-stable
+  git push activeadmin N-N-stable:N-N-stable
+  ```
+
+* Make sure you have [chandler] properly configured. Chandler is used to
+  automatically submit github release notes from the changelog right after
+  pushing the gem to rubygems.
+* `bin/rake release`
+
+[chandler]: https://github.com/mattbrictson/chandler#2-configure-credentials
+[chromedriver]: https://sites.google.com/a/chromium.org/chromedriver/getting-started
+[mailing list]: http://groups.google.com/group/activeadmin
+[Stack Overflow]: http://stackoverflow.com/questions/tagged/activeadmin
+[search the issue tracker]: https://github.com/activeadmin/activeadmin/issues?q=something
+[new issue]: https://github.com/activeadmin/activeadmin/issues/new
+[fork Active Admin]: https://help.github.com/articles/fork-a-repo
+[searching all issues]: https://github.com/activeadmin/activeadmin/issues?q=
+[master template]: https://github.com/activeadmin/activeadmin/blob/master/tasks/bug_report_template.rb
+[make a pull request]: https://help.github.com/articles/creating-a-pull-request
+[git rebasing]: http://git-scm.com/book/en/Git-Branching-Rebasing
+[interactive rebase]: https://help.github.com/articles/interactive-rebase

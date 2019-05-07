@@ -7,7 +7,7 @@ module ActiveAdmin
         def input_name
           return method if seems_searchable?
 
-          searchable_method_name.concat multiple? ? '_in' : '_eq'
+          searchable_method_name + (multiple? ? '_in' : '_eq')
         end
 
         def searchable_method_name
@@ -15,7 +15,7 @@ module ActiveAdmin
             "#{reflection.through_reflection.name}_#{reflection.foreign_key}"
           else
             name = method.to_s
-            name.concat '_id' if reflection
+            name.concat "_#{reflection.association_primary_key}" if reflection_searchable?
             name
           end
         end
@@ -45,7 +45,11 @@ module ActiveAdmin
         end
 
         def pluck_column
-          klass.reorder("#{method} asc").uniq.pluck method
+          klass.reorder("#{method} asc").distinct.pluck method
+        end
+
+        def reflection_searchable?
+          reflection && !reflection.polymorphic?
         end
 
       end

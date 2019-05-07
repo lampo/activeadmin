@@ -1,5 +1,3 @@
-require 'active_admin/filters/active'
-
 module ActiveAdmin
   module Filters
 
@@ -85,7 +83,7 @@ module ActiveAdmin
         @filters_to_remove = nil
       end
 
-    private
+      private
 
       # Collapses the waveform, if you will, of which filters should be displayed.
       # Removes filters and adds in default filters as desired.
@@ -107,7 +105,11 @@ module ActiveAdmin
 
       # @return [Array] The array of default filters for this resource
       def default_filters
-        default_association_filters + default_content_filters + custom_ransack_filters
+        result = []
+        result.concat default_association_filters if namespace.include_default_association_filters
+        result.concat content_columns
+        result.concat custom_ransack_filters
+        result
       end
 
       def custom_ransack_filters
@@ -121,22 +123,13 @@ module ActiveAdmin
       # Returns a default set of filters for the associations
       def default_association_filters
         if resource_class.respond_to?(:reflect_on_all_associations)
-          poly, not_poly = resource_class.reflect_on_all_associations.partition{ |r| r.macro == :belongs_to && r.options[:polymorphic] }
+          poly, not_poly = resource_class.reflect_on_all_associations.partition { |r| r.macro == :belongs_to && r.options[:polymorphic] }
 
           # remove deeply nested associations
-          not_poly.reject!{ |r| r.chain.length > 2 }
+          not_poly.reject! { |r| r.chain.length > 2 }
 
           filters = poly.map(&:foreign_type) + not_poly.map(&:name)
           filters.map &:to_sym
-        else
-          []
-        end
-      end
-
-      # Returns a default set of filters for the content columns
-      def default_content_filters
-        if resource_class.respond_to? :content_columns
-          resource_class.content_columns.map{ |c| c.name.to_sym }
         else
           []
         end
@@ -147,43 +140,15 @@ module ActiveAdmin
       end
 
       def filters_sidebar_section
-        ActiveAdmin::SidebarSection.new :filters, only: :index, if: ->{ active_admin_config.filters.any? } do
+        ActiveAdmin::SidebarSection.new :filters, only: :index, if: -> { active_admin_config.filters.any? } do
           active_admin_filters_form_for assigns[:search], active_admin_config.filters
         end
       end
 
       def add_search_status_sidebar_section
-        if current_filters_enabled?
-          self.sidebar_sections << search_status_section
-        end
+        self.sidebar_sections << ActiveAdmin::Filters::ActiveSidebar.new
       end
 
-      def search_status_section
-        ActiveAdmin::SidebarSection.new :search_status, only: :index, if: -> { params[:q] || params[:scope] } do
-          active = ActiveAdmin::Filters::Active.new(resource_class, params)
-
-          span do
-            h4 I18n.t("active_admin.search_status.headline"), style: 'display: inline'
-            b active.scope, style: "display: inline"
-
-            div style: "margin-top: 10px" do
-              h4 I18n.t("active_admin.search_status.current_filters"), style: 'margin-bottom: 10px'
-              ul do
-                if active.filters.blank?
-                  li I18n.t("active_admin.search_status.no_current_filters")
-                else
-                  active.filters.each do |filter|
-                    li do
-                      span filter.body
-                      b filter.value
-                    end
-                  end
-                end
-              end
-            end
-          end
-        end
-      end
     end
 
   end

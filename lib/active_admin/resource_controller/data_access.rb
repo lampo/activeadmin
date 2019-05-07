@@ -14,6 +14,8 @@ module ActiveAdmin
           include ScopeChain
 
           define_active_admin_callbacks :build, :create, :update, :save, :destroy
+
+          helper_method :current_scope
         end
       end
 
@@ -45,7 +47,6 @@ module ActiveAdmin
         end
       end
 
-
       # Does the actual work of retrieving the current collection from the db.
       # This is a great method to override if you would like to perform
       # some additional db # work before your controller returns and
@@ -59,7 +60,6 @@ module ActiveAdmin
         end
         collection
       end
-
 
       # Override this method in your controllers to modify the start point
       # of our searches and index.
@@ -88,9 +88,9 @@ module ActiveAdmin
       def resource
         get_resource_ivar || begin
           resource = find_resource
+          resource = apply_decorations(resource)
           authorize_resource! resource
 
-          resource = apply_decorator resource
           set_resource_ivar resource
         end
       end
@@ -98,15 +98,10 @@ module ActiveAdmin
       # Does the actual work of finding a resource in the database. This
       # method uses the finder method as defined in InheritedResources.
       #
-      # Note that public_send can't be used here because Rails 3.2's
-      # ActiveRecord::Associations::CollectionProxy (belongs_to associations)
-      # mysteriously returns an Enumerator object.
-      #
       # @return [ActiveRecord::Base] An active record object.
       def find_resource
         scoped_collection.send method_for_find, params[:id]
       end
-
 
       # Builds, memoize and authorize a new instance of the resource. The
       # actual work of building the new instance is delegated to the
@@ -119,10 +114,11 @@ module ActiveAdmin
       def build_resource
         get_resource_ivar || begin
           resource = build_new_resource
+          resource = apply_decorations(resource)
+          resource = assign_attributes(resource, resource_params)
           run_build_callbacks resource
           authorize_resource! resource
 
-          resource = apply_decorator resource
           set_resource_ivar resource
         end
       end
@@ -130,12 +126,12 @@ module ActiveAdmin
       # Builds a new resource. This method uses the method_for_build provided
       # by Inherited Resources.
       #
-      # Note that public_send can't be used here w/ Rails 3.2 & a belongs_to
-      # config, or you'll get undefined method `build' for []:Array.
-      #
       # @return [ActiveRecord::Base] An un-saved active record base object
       def build_new_resource
-        scoped_collection.send method_for_build, *resource_params
+        scoped_collection.send(
+          method_for_build,
+          *resource_params.map { |params| params.slice(active_admin_config.resource_class.inheritance_column) }
+        )
       end
 
       # Calls all the appropriate callbacks and then creates the new resource.
@@ -171,11 +167,7 @@ module ActiveAdmin
       #
       # @return [void]
       def update_resource(object, attributes)
-        if object.respond_to?(:assign_attributes)
-          object.assign_attributes(*attributes)
-        else
-          object.attributes = attributes[0]
-        end
+        object = assign_attributes(object, attributes)
 
         run_update_callbacks object do
           save_resource(object)
@@ -191,11 +183,9 @@ module ActiveAdmin
         end
       end
 
-
       #
       # Collection Helper Methods
       #
-
 
       # Gives the authorization library a change to pre-scope the collection.
       #
@@ -212,11 +202,10 @@ module ActiveAdmin
 
       def apply_sorting(chain)
         params[:order] ||= active_admin_config.sort_order
-
-        order_clause = OrderClause.new params[:order]
+        order_clause = active_admin_config.order_clause.new(active_admin_config, params[:order])
 
         if order_clause.valid?
-          chain.reorder(order_clause.to_sql(active_admin_config))
+          order_clause.apply(chain)
         else
           chain # just return the chain
         end
@@ -225,16 +214,8 @@ module ActiveAdmin
       # Applies any Ransack search methods to the currently scoped collection.
       # Both `search` and `ransack` are provided, but we use `ransack` to prevent conflicts.
       def apply_filtering(chain)
-        @search = chain.ransack clean_search_params params[:q]
+        @search = chain.ransack(params[:q] || {})
         @search.result
-      end
-
-      def clean_search_params(params)
-        if params.is_a? Hash
-          params.dup.delete_if{ |key, value| value.blank? }
-        else
-          {}
-        end
       end
 
       def apply_scoping(chain)
@@ -261,13 +242,15 @@ module ActiveAdmin
 
       def current_scope
         @current_scope ||= if params[:scope]
-          active_admin_config.get_scope_by_id(params[:scope])
-        else
-          active_admin_config.default_scope(self)
-        end
+                             active_admin_config.get_scope_by_id(params[:scope])
+                           else
+                             active_admin_config.default_scope(self)
+                           end
       end
 
       def apply_pagination(chain)
+        # skip pagination if already was paginated by scope
+        return chain if chain.respond_to?(:total_pages)
         page_method_name = Kaminari.config.page_method_name
         page = params[Kaminari.config.param_name]
 
@@ -275,16 +258,17 @@ module ActiveAdmin
       end
 
       def collection_applies(options = {})
-        only = Array(options.fetch(:only, COLLECTION_APPLIES))
+        only   = Array(options.fetch(:only, COLLECTION_APPLIES))
         except = Array(options.fetch(:except, []))
-        COLLECTION_APPLIES && only - except
+
+        COLLECTION_APPLIES & only - except
       end
 
       def per_page
         if active_admin_config.paginate
           dynamic_per_page || configured_per_page
         else
-          max_per_page
+          active_admin_config.max_per_page
         end
       end
 
@@ -293,17 +277,46 @@ module ActiveAdmin
       end
 
       def configured_per_page
-        if active_admin_config.per_page.is_a?(Array)
-          active_admin_config.per_page[0]
+        Array(active_admin_config.per_page).first
+      end
+
+      # @param resource [ActiveRecord::Base]
+      # @param attributes [Array<Hash]
+      # @return [ActiveRecord::Base] resource
+      #
+      def assign_attributes(resource, attributes)
+        if resource.respond_to?(:assign_attributes)
+          resource.assign_attributes(*attributes)
         else
-          active_admin_config.per_page
+          resource.attributes = attributes[0]
+        end
+
+        resource
+      end
+
+      # @param resource [ActiveRecord::Base]
+      # @return [ActiveRecord::Base] resource
+      #
+      def apply_decorations(resource)
+        apply_decorator(resource)
+      end
+
+      # @return [String]
+      def smart_resource_url
+        if create_another?
+          new_resource_url(create_another: params[:create_another])
+        else
+          super
         end
       end
 
-      def max_per_page
-        10_000
-      end
+      private
 
+      # @return [Boolean] true if user requested to create one more
+      #   resource after creating this one.
+      def create_another?
+        params[:create_another].present?
+      end
     end
   end
 end

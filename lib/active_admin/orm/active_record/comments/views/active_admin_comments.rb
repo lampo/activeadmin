@@ -11,21 +11,33 @@ module ActiveAdmin
         attr_accessor :resource
 
         def build(resource)
-          @resource = resource
-          @comments = ActiveAdmin::Comment.find_for_resource_in_namespace resource, active_admin_namespace.name
-          super(title, for: resource)
-          build_comments
+          if authorized?(ActiveAdmin::Auth::READ, ActiveAdmin::Comment)
+            @resource = resource
+            @comments = active_admin_authorization.scope_collection(ActiveAdmin::Comment.find_for_resource_in_namespace(resource, active_admin_namespace.name).includes(:author).page(params[:page]))
+            super(title, for: resource)
+            build_comments
+          end
         end
 
         protected
 
         def title
-          I18n.t 'active_admin.comments.title_content', count: @comments.count
+          I18n.t 'active_admin.comments.title_content', count: @comments.total_count
         end
 
         def build_comments
-          @comments.any? ? @comments.each(&method(:build_comment)) : build_empty_message
-          build_comment_form
+          if @comments.any?
+            @comments.each(&method(:build_comment))
+            div page_entries_info(@comments).html_safe, class: 'pagination_information'
+          else
+            build_empty_message
+          end
+
+          text_node paginate @comments
+
+          if authorized?(ActiveAdmin::Auth::CREATE, ActiveAdmin::Comment)
+            build_comment_form
+          end
         end
 
         def build_comment(comment)
@@ -35,6 +47,9 @@ module ActiveAdmin
                 comment.author ? auto_link(comment.author) : I18n.t('active_admin.comments.author_missing')
               end
               span pretty_format comment.created_at
+              if authorized?(ActiveAdmin::Auth::DESTROY, comment)
+                text_node link_to I18n.t('active_admin.comments.delete'), comments_url(comment.id), method: :delete, data: { confirm: I18n.t('active_admin.comments.delete_confirmation') }
+              end
             end
             div class: 'active_admin_comment_body' do
               simple_format comment.body
@@ -44,6 +59,14 @@ module ActiveAdmin
 
         def build_empty_message
           span I18n.t('active_admin.comments.no_comments_yet'), class: 'empty'
+        end
+
+        def comments_url(*args)
+          parts = []
+          parts << active_admin_namespace.name unless active_admin_namespace.root?
+          parts << active_admin_namespace.comments_registration_name.underscore
+          parts << 'path'
+          send parts.join('_'), *args
         end
 
         def comment_form_url

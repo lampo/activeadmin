@@ -1,17 +1,11 @@
-$LOAD_PATH.unshift(File.dirname(__FILE__))
-$LOAD_PATH << File.expand_path('../support', __FILE__)
+require 'simplecov' if ENV["COVERAGE"] == "true"
 
-ENV['BUNDLE_GEMFILE'] = File.expand_path('../../Gemfile', __FILE__)
-require "bundler"
-Bundler.setup
-
-require 'detect_rails_version'
-ENV['RAILS'] = detect_rails_version
-
-require 'simplecov'
-
-SimpleCov.start do
-  add_filter 'spec/'
-  add_filter 'features/'
-  add_filter 'bundle/' # for Travis
+RSpec.configure do |config|
+  config.disable_monkey_patching!
+  config.filter_run focus: true
+  config.filter_run_excluding changes_filesystem: true
+  config.run_all_when_everything_filtered = true
+  config.color = true
+  config.order = :random
+  config.example_status_persistence_file_path = ".rspec_failures"
 end

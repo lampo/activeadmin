@@ -37,7 +37,7 @@ module ActiveAdmin
       end
 
       def polymorphic_foreign_type?(method)
-        klass.reflect_on_all_associations.select{ |r| r.macro == :belongs_to && r.options[:polymorphic] }
+        klass.reflect_on_all_associations.select { |r| r.macro == :belongs_to && r.options[:polymorphic] }
           .map(&:foreign_type).include? method.to_s
       end
 
@@ -54,7 +54,7 @@ module ActiveAdmin
       end
 
       def seems_searchable?
-        has_predicate? || ransacker? || scope?
+        has_predicate? || scope?
       end
 
       # If the given method has a predicate (like _eq or _lteq), it's pretty
